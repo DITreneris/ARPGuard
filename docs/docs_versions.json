@@ -1,0 +1,164 @@
+{
+  "version": "1.0",
+  "documents": {
+    "docs\\api_documentation.md": {
+      "path": "api_documentation.md",
+      "versions": [
+        {
+          "version": 2,
+          "hash": "5cbc7b5707b8e172a1fafad48393276b4bf74707dcda5285ba17531fd7ee1b62",
+          "timestamp": "2025-04-06T06:34:36.625397",
+          "frontmatter": {}
+        }
+      ],
+      "current_version": 2,
+      "last_modified": "2025-04-06T06:34:36.625397",
+      "git_history": [
+        {
+          "hash": "9084c731e73afe38f3a7b9ad5028d553d3efa4eb",
+          "author": "DITreneris",
+          "date": "2025-04-06T06:16:52+03:00",
+          "message": "Initial commit: Project setup with ML components"
+        }
+      ]
+    },
+    "docs\\architecture_overview.md": {
+      "path": "architecture_overview.md",
+      "versions": [
+        {
+          "version": 2,
+          "hash": "53f6d51067ed5ea1517b029bfb20c622263a69dd99bde54fca48b796213a5f7b",
+          "timestamp": "2025-04-06T06:34:36.710362",
+          "frontmatter": {}
+        }
+      ],
+      "current_version": 2,
+      "last_modified": "2025-04-06T06:34:36.710362",
+      "git_history": [
+        {
+          "hash": "9084c731e73afe38f3a7b9ad5028d553d3efa4eb",
+          "author": "DITreneris",
+          "date": "2025-04-06T06:16:52+03:00",
+          "message": "Initial commit: Project setup with ML components"
+        }
+      ]
+    },
+    "docs\\guidelines.md": {
+      "path": "guidelines.md",
+      "versions": [
+        {
+          "version": 2,
+          "hash": "33c3fb4df1c4b2c9d6d4e38870dae75fa253299ffce2145a7dba65da4f93973f",
+          "timestamp": "2025-04-06T06:34:36.791890",
+          "frontmatter": {}
+        }
+      ],
+      "current_version": 2,
+      "last_modified": "2025-04-06T06:34:36.791890",
+      "git_history": []
+    },
+    "docs\\ml_integration.md": {
+      "path": "ml_integration.md",
+      "versions": [
+        {
+          "version": 2,
+          "hash": "2c2e045afd5937b6720b5c02c2eb6d6eae7f745bff2a2039968edf650777860a",
+          "timestamp": "2025-04-06T06:34:36.867774",
+          "frontmatter": {}
+        }
+      ],
+      "current_version": 2,
+      "last_modified": "2025-04-06T06:34:36.867774",
+      "git_history": [
+        {
+          "hash": "9084c731e73afe38f3a7b9ad5028d553d3efa4eb",
+          "author": "DITreneris",
+          "date": "2025-04-06T06:16:52+03:00",
+          "message": "Initial commit: Project setup with ML components"
+        }
+      ]
+    },
+    "docs\\test_coverage_report.md": {
+      "path": "test_coverage_report.md",
+      "versions": [
+        {
+          "version": 2,
+          "hash": "c3158d9ca6f464296c9dad87be72812d6a4714c5bd5a4025c2bd98c50d693d63",
+          "timestamp": "2025-04-06T06:34:36.945730",
+          "frontmatter": {}
+        }
+      ],
+      "current_version": 2,
+      "last_modified": "2025-04-06T06:34:36.945730",
+      "git_history": [
+        {
+          "hash": "9084c731e73afe38f3a7b9ad5028d553d3efa4eb",
+          "author": "DITreneris",
+          "date": "2025-04-06T06:16:52+03:00",
+          "message": "Initial commit: Project setup with ML components"
+        }
+      ]
+    },
+    "docs\\version_control.md": {
+      "path": "version_control.md",
+      "versions": [
+        {
+          "version": 2,
+          "hash": "9da09cd6204366bba3698df7dcb6848cecf63b84135a19400749582b48f21acc",
+          "timestamp": "2025-04-06T06:34:37.027219",
+          "frontmatter": {}
+        }
+      ],
+      "current_version": 2,
+      "last_modified": "2025-04-06T06:34:37.027219",
+      "git_history": [
+        {
+          "hash": "29b832eb38d3ced4d071cd4afd35c6e6a868301f",
+          "author": "DITreneris",
+          "date": "2025-04-06T06:17:51+03:00",
+          "message": "docs: implement documentation version control and pre-commit hooks"
+        }
+      ]
+    },
+    "docs\\templates\\component_template.md": {
+      "path": "templates\\component_template.md",
+      "versions": [
+        {
+          "version": 2,
+          "hash": "778c514ac45de8e1367b8d95d73e36ddf44edcfb778de9146d89d9484667d30b",
+          "timestamp": "2025-04-06T06:34:37.116243",
+          "frontmatter": {}
+        }
+      ],
+      "current_version": 2,
+      "last_modified": "2025-04-06T06:34:37.116243",
+      "git_history": []
+    },
+    "docs\\user_manual\\README.md": {
+      "path": "user_manual\\README.md",
+      "versions": [
+        {
+          "version": 2,
+          "hash": "9321fc7e22f5f482b754b5a9b9699d84b0cb02b3f2ce85cbe40d7dc69a62f6e5",
+          "timestamp": "2025-04-06T06:34:37.206187",
+          "frontmatter": {}
+        }
+      ],
+      "current_version": 2,
+      "last_modified": "2025-04-06T06:34:37.206187",
+      "git_history": [
+        {
+          "hash": "9084c731e73afe38f3a7b9ad5028d553d3efa4eb",
+          "author": "DITreneris",
+          "date": "2025-04-06T06:16:52+03:00",
+          "message": "Initial commit: Project setup with ML components"
+        }
+      ]
+    }
+  },
+  "last_updated": "2025-04-06T06:34:37.208179",
+  "metadata": {
+    "total_versions": 8,
+    "total_documents": 8
+  }
+}

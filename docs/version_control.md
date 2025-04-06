@@ -1,3 +1,13 @@
+---
+version: 2
+last_modified: '2025-04-06T06:34:37.027219'
+git_history:
+- hash: 29b832eb38d3ced4d071cd4afd35c6e6a868301f
+  author: DITreneris
+  date: '2025-04-06T06:17:51+03:00'
+  message: 'docs: implement documentation version control and pre-commit hooks'
+---
+
 # Documentation Version Control
 
 ## Version Control System

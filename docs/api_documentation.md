@@ -1,3 +1,13 @@
+---
+version: 2
+last_modified: '2025-04-06T06:34:36.625397'
+git_history:
+- hash: 9084c731e73afe38f3a7b9ad5028d553d3efa4eb
+  author: DITreneris
+  date: '2025-04-06T06:16:52+03:00'
+  message: 'Initial commit: Project setup with ML components'
+---
+
 # ARPGuard API Documentation
 
 ## Overview

@@ -1,0 +1,81 @@
+name: Documentation Review
+
+on:
+  pull_request:
+    branches: [ main, develop ]
+    paths:
+      - 'docs/**'
+      - '.github/workflows/docs-review.yml'
+
+jobs:
+  review:
+    runs-on: ubuntu-latest
+    steps:
+    - uses: actions/checkout@v3
+      with:
+        fetch-depth: 0
+
+    - name: Set up Python
+      uses: actions/setup-python@v4
+      with:
+        python-version: '3.9'
+
+    - name: Install dependencies
+      run: |
+        python -m pip install --upgrade pip
+        pip install -r requirements.txt
+        pip install sphinx sphinx-rtd-theme sphinx-autodoc-typehints
+        pip install markdownlint-cli
+        pip install codespell
+
+    - name: Run documentation tests
+      run: |
+        pytest tests/test_documentation.py
+
+    - name: Check spelling
+      run: |
+        codespell docs/ --ignore-words-list=nd,ba,fo,datas,datasource,datasources,datastore,datastores,datastream,datastreams,datatype,datatypes
+
+    - name: Check markdown formatting
+      run: |
+        markdownlint docs/ --config .markdownlint.json
+
+    - name: Check links
+      run: |
+        python scripts/check_links.py docs/
+
+    - name: Build documentation
+      run: |
+        cd docs
+        make html
+
+    - name: Create review comment
+      uses: actions/github-script@v6
+      with:
+        script: |
+          const fs = require('fs');
+          const path = require('path');
+          
+          // Read test results
+          const testResults = fs.readFileSync('test-results.txt', 'utf8');
+          
+          // Create review comment
+          github.rest.pulls.createReview({
+            owner: context.repo.owner,
+            repo: context.repo.repo,
+            pull_request_number: context.issue.number,
+            body: `# Documentation Review Results\n\n${testResults}`,
+            event: 'COMMENT'
+          });
+
+    - name: Notify reviewers
+      if: failure()
+      uses: actions/github-script@v6
+      with:
+        script: |
+          github.rest.issues.createComment({
+            owner: context.repo.owner,
+            repo: context.repo.repo,
+            issue_number: context.issue.number,
+            body: '@documentation-team Please review the documentation changes.'
+          }); 

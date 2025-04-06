@@ -79,4 +79,90 @@ psutil==5.9.5
 # Web/API (if needed)
 fastapi==0.100.0
 uvicorn==0.23.1
-python-dotenv==1.0.0 
+python-dotenv==1.0.0
+
+# Core dependencies
+mkdocs>=1.4.2
+mkdocs-material>=8.5.11
+pymdown-extensions>=9.9.2
+markdown>=3.4.1
+jinja2>=3.1.2
+pyyaml>=6.0
+python-dateutil>=2.8.2
+
+# Documentation building
+pandoc>=2.19.2
+weasyprint>=58.1
+mkdocs-pdf-export-plugin>=0.7.0
+mkdocs-awesome-pages-plugin>=2.8.0
+mkdocs-git-revision-date-localized-plugin>=1.2.0
+mkdocs-minify-plugin>=0.6.2
+mkdocs-redirects>=1.2.0
+mkdocs-section-index>=0.3.5
+mkdocs-simple-hooks>=0.1.3
+mkdocs-static-i18n>=0.53
+mkdocs-with-pdf>=0.9.0
+
+# Documentation validation
+markdown-link-validator>=0.1.0
+markdown-lint>=0.0.1
+markdown-meta>=0.1.0
+markdown-toc>=0.1.0
+markdown-validator>=0.1.0
+
+# Search and indexing
+nltk>=3.8.1
+whoosh>=2.7.4
+elasticsearch>=8.5.3
+
+# Translation
+deep-translator>=1.11.4
+googletrans>=4.0.0-rc1
+
+# Development tools
+black>=22.12.0
+flake8>=6.0.0
+isort>=5.11.4
+mypy>=0.991
+pytest>=7.2.1
+pytest-cov>=4.0.0
+pytest-mock>=3.10.0
+pytest-xdist>=3.1.0
+
+# Testing
+pytest>=7.2.1
+pytest-cov>=4.0.0
+pytest-mock>=3.10.0
+pytest-xdist>=3.1.0
+
+# Documentation
+sphinx>=5.3.0
+sphinx-rtd-theme>=1.1.1
+sphinx-autodoc-typehints>=1.19.5
+sphinx-copybutton>=0.5.1
+sphinx-design>=0.3.0
+sphinx-external-toc>=0.3.1
+sphinx-jinja>=1.1.1
+sphinx-multiversion>=0.2.4
+sphinx-panels>=0.6.0
+sphinx-prompt>=1.5.0
+sphinx-tabs>=3.4.1
+sphinx-theme-builder>=0.2.0b1
+sphinx-toolbox>=3.1.0
+sphinxcontrib-applehelp>=1.0.2
+sphinxcontrib-devhelp>=1.0.2
+sphinxcontrib-htmlhelp>=2.0.0
+sphinxcontrib-jsmath>=1.0.1
+sphinxcontrib-qthelp>=1.0.3
+sphinxcontrib-serializinghtml>=1.1.5
+sphinxcontrib-spelling>=7.7.0
+sphinxcontrib-websupport>=1.2.4
+
+# Utilities
+click>=8.1.3
+colorama>=0.4.6
+humanize>=4.6.0
+progress>=1.6
+python-slugify>=8.0.1
+rich>=13.0.0
+typer>=0.7.0 
