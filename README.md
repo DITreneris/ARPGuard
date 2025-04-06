@@ -1,6 +1,6 @@
 # ARPGuard - Network Security Tool
 **Version: 2.4**
-**Last Updated: April 6, 2024**
+**Last Updated: April 6, 2025**
 
 ARPGuard is a network security tool designed to scan networks, detect ARP spoofing attacks, and improve local network security. It offers both GUI and CLI interfaces for different use cases.
 
@@ -18,8 +18,8 @@ ARPGuard aims to be the go-to platform for comprehensive, easily deployable, and
 - **Current Version:** 0.2 (Enhanced UI and Core Features)
 - **Next Release:** 0.3 (Comprehensive Packet Analysis) - Coming Q3 2024
 - **Development Status:** 92.7% test coverage achieved
-- **Roadmap Phase:** Phase 1 (Q2-Q4 2024) - Strengthening Core & Building Foundations
-- **ML Development:** Hybrid model architecture in progress (Q2-Q4 2024)
+- **Roadmap Phase:** Phase 1 (Q2-Q4 2025) - Strengthening Core & Building Foundations
+- **ML Development:** Hybrid model architecture implemented with dual detection approach
 - **Documentation:** Comprehensive version-controlled documentation with timestamps
 
 ## Key Features
@@ -36,6 +36,7 @@ ARPGuard aims to be the go-to platform for comprehensive, easily deployable, and
 - Multiple export formats (HTML, PDF, CSV, JSON)
 - Light/Dark theme support
 - Comprehensive documentation system with version tracking
+- **NEW: Machine Learning based attack detection**
 
 ## Performance Metrics
 
@@ -53,13 +54,35 @@ ARPGuard aims to be the go-to platform for comprehensive, easily deployable, and
 - < 5% false positive rate
 - 99.9% system uptime
 
-## Current Development Focus (Q2 2024)
+## Current Development Focus (Q2 2025)
 
 - Hybrid ML model architecture implementation
 - Two-layer detection approach (rules + ML)
 - Ensemble methods (Random Forest, Decision Trees)
 - Performance optimization for real-time processing
 - Comprehensive documentation management system
+
+## Machine Learning Detection Layer
+
+ARPGuard now includes a sophisticated ML-based detection layer that complements traditional rule-based detection:
+
+### Key ML Features:
+
+- **Dual Detection Approach**: Anomaly detection + attack classification
+- **Multiple Attack Type Detection**: Identifies spoofing, MITM, DoS, and reconnaissance
+- **Automatic Learning**: Adapts to your network's specific traffic patterns
+- **Zero-Day Detection**: Identifies previously unknown attack variants
+- **Feature Importance Analysis**: Explains why traffic was flagged as malicious
+- **Interactive ML Dashboard**: Visualize and manage ML detection capabilities
+
+### ML-Based Detection Types:
+
+- **Anomaly Detection**: Identifies statistical outliers using Isolation Forest
+- **Classification**: Categorizes attacks using Random Forest classifier
+- **Confidence Scoring**: Provides probability estimates for each detection
+- **Severity Assessment**: Automatically assigns severity based on attack type
+
+For more details, see the [ML Detection documentation](docs/ml_detection.md).
 
 ## ML KPI Monitoring Tool
 
@@ -91,6 +114,26 @@ python scripts/monitor_ml_kpis.py chart --category technical_kpis
 ```
 
 The tool stores KPI data in JSON format and generates HTML dashboards with interactive charts. Reports are saved to the `reports/ml_kpis` directory.
+
+## Memory Management
+
+ARPGuard implements an advanced memory management system for packet capture operations, ensuring optimal performance and stability even during intensive network monitoring sessions.
+
+### Key Features
+
+- **Adaptive Memory Management**: Automatically adjusts behavior based on system memory conditions
+- **Packet Sampling**: Intelligently samples packets during high memory pressure situations
+- **Memory-Aware Storage**: Dynamically adjusts buffer sizes and history retention based on available memory
+- **Packet Deduplication**: Identifies and eliminates duplicate packets to reduce memory usage
+- **Proactive Memory Optimization**: Runs garbage collection and memory reclamation at optimal intervals
+- **Memory Pressure Monitoring**: Provides real-time monitoring and alerting for memory usage
+- **Configurable Memory Strategies**: Supports different memory management strategies (Aggressive, Balanced, Conservative, Adaptive)
+
+### Configuration
+
+Memory management settings can be customized in `config/memory_config.yml`.
+
+For detailed information, see the [Memory Management documentation](docs/memory_management.md).
 
 ## Installation
 
@@ -142,6 +185,12 @@ python cli_tool.py --monitor --duration 60
 
 # Enable debug logging
 python cli_tool.py --scan --debug
+
+# Enable ML-based detection
+python cli_tool.py --monitor --ml-detection
+
+# Test ML detection with sample data
+python scripts/test_ml_detection.py
 ```
 
 ### Layer 3 CLI Version (No WinPcap/Npcap Required)
@@ -237,6 +286,15 @@ python scripts/version_docs.py history docs/path/to/document.md
 python scripts/generate_status_report.py
 ```
 
+## Documentation Management
+
+The ARPGuard project includes several scripts to help manage documentation:
+
+- **version_docs.py**: Tracks document versions and updates
+- **validate_docs.py**: Validates documentation files for formatting issues
+- **fix_doc_dates.py**: Fixes date inconsistencies across documentation files
+- **generate_status_report.py**: Generates project status reports
+
 ## Development
 
 ### Project Structure
@@ -315,5 +373,22 @@ This project is licensed under the MIT License - see the LICENSE file for detail
 - Scapy project for packet manipulation
 - PyQt5 for the GUI framework
 - Open threat intelligence sources
+
+## Official Resources
+
+* **GitHub Repository**: [ARPGuard on GitHub](https://github.com/DITreneris/ARPGuard)
+* **Official Website**: [Guards and Robbers](https://guardsandrobbers.com/)
+* **Documentation**: [ARPGuard Documentation](https://guardsandrobbers.com/docs)
+* **Support**: [Contact Support](https://guardsandrobbers.com/support)
+
+## Website Integration
+
+ARPGuard is officially supported and documented on [guardsandrobbers.com](https://guardsandrobbers.com/). The website provides:
+
+* Latest product updates and announcements
+* Comprehensive documentation and tutorials
+* Community support and forums
+* Enterprise support options
+* Professional services information
 
 **Last Updated: April 6, 2024** 
