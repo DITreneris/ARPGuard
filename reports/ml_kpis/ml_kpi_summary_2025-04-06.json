@@ -1,0 +1,153 @@
+{
+  "generated_at": "2025-04-06T07:03:28.988705",
+  "kpi_summary": {
+    "development_kpis": {
+      "ml_environment": {
+        "current": 20.0,
+        "previous": 15.0,
+        "change": 33.33333333333333
+      },
+      "implementation_progress": {
+        "current": 5.0,
+        "previous": 5.0,
+        "change": 0.0
+      },
+      "test_coverage": {
+        "current": 0.0,
+        "previous": 0.0,
+        "change": null
+      },
+      "documentation": {
+        "current": 80.0,
+        "previous": 80.0,
+        "change": 0.0
+      },
+      "code_quality": {
+        "current": 100.0,
+        "previous": 100.0,
+        "change": 0.0
+      }
+    },
+    "technical_kpis": {
+      "model_accuracy": {
+        "current": 0.0,
+        "previous": 0.0,
+        "change": null
+      },
+      "false_positive_rate": {
+        "current": 0.0,
+        "previous": 0.0,
+        "change": null
+      },
+      "inference_latency": {
+        "current": 0.0,
+        "previous": 0.0,
+        "change": null
+      },
+      "memory_footprint": {
+        "current": 0.0,
+        "previous": 0.0,
+        "change": null
+      },
+      "cpu_utilization": {
+        "current": 0.0,
+        "previous": 0.0,
+        "change": null
+      },
+      "training_time": {
+        "current": 0.0,
+        "previous": 0.0,
+        "change": null
+      }
+    },
+    "operational_kpis": {
+      "model_drift": {
+        "current": 0.0,
+        "previous": 0.0,
+        "change": null
+      },
+      "integration_status": {
+        "current": 0.0,
+        "previous": 0.0,
+        "change": null
+      },
+      "resource_utilization": {
+        "current": 0.0,
+        "previous": 0.0,
+        "change": null
+      },
+      "user_feedback": {
+        "current": 0.0,
+        "previous": 0.0,
+        "change": null
+      },
+      "incident_response": {
+        "current": 0.0,
+        "previous": 0.0,
+        "change": null
+      }
+    },
+    "business_kpis": {
+      "feature_completion": {
+        "current": 5.0,
+        "previous": 5.0,
+        "change": 0.0
+      },
+      "quality_issues": {
+        "current": 0.0,
+        "previous": 0.0,
+        "change": null
+      },
+      "adoption_rate": {
+        "current": 0.0,
+        "previous": 0.0,
+        "change": null
+      },
+      "detection_improvement": {
+        "current": 0.0,
+        "previous": 0.0,
+        "change": null
+      },
+      "cost_efficiency": {
+        "current": 0.0,
+        "previous": 0.0,
+        "change": null
+      }
+    }
+  },
+  "charts": {
+    "development_kpis": {
+      "ml_environment": "reports\\ml_kpis\\development_kpis_ml_environment_trend.png",
+      "implementation_progress": "reports\\ml_kpis\\development_kpis_implementation_progress_trend.png",
+      "test_coverage": "reports\\ml_kpis\\development_kpis_test_coverage_trend.png",
+      "documentation": "reports\\ml_kpis\\development_kpis_documentation_trend.png",
+      "code_quality": "reports\\ml_kpis\\development_kpis_code_quality_trend.png",
+      "dashboard": "reports\\ml_kpis\\development_kpis_dashboard.png"
+    },
+    "technical_kpis": {
+      "model_accuracy": "reports\\ml_kpis\\technical_kpis_model_accuracy_trend.png",
+      "false_positive_rate": "reports\\ml_kpis\\technical_kpis_false_positive_rate_trend.png",
+      "inference_latency": "reports\\ml_kpis\\technical_kpis_inference_latency_trend.png",
+      "memory_footprint": "reports\\ml_kpis\\technical_kpis_memory_footprint_trend.png",
+      "cpu_utilization": "reports\\ml_kpis\\technical_kpis_cpu_utilization_trend.png",
+      "training_time": "reports\\ml_kpis\\technical_kpis_training_time_trend.png",
+      "dashboard": "reports\\ml_kpis\\technical_kpis_dashboard.png"
+    },
+    "operational_kpis": {
+      "model_drift": "reports\\ml_kpis\\operational_kpis_model_drift_trend.png",
+      "integration_status": "reports\\ml_kpis\\operational_kpis_integration_status_trend.png",
+      "resource_utilization": "reports\\ml_kpis\\operational_kpis_resource_utilization_trend.png",
+      "user_feedback": "reports\\ml_kpis\\operational_kpis_user_feedback_trend.png",
+      "incident_response": "reports\\ml_kpis\\operational_kpis_incident_response_trend.png",
+      "dashboard": "reports\\ml_kpis\\operational_kpis_dashboard.png"
+    },
+    "business_kpis": {
+      "feature_completion": "reports\\ml_kpis\\business_kpis_feature_completion_trend.png",
+      "quality_issues": "reports\\ml_kpis\\business_kpis_quality_issues_trend.png",
+      "adoption_rate": "reports\\ml_kpis\\business_kpis_adoption_rate_trend.png",
+      "detection_improvement": "reports\\ml_kpis\\business_kpis_detection_improvement_trend.png",
+      "cost_efficiency": "reports\\ml_kpis\\business_kpis_cost_efficiency_trend.png",
+      "dashboard": "reports\\ml_kpis\\business_kpis_dashboard.png"
+    }
+  }
+}

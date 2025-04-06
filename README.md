@@ -1,4 +1,6 @@
 # ARPGuard - Network Security Tool
+**Version: 2.4**
+**Last Updated: April 6, 2024**
 
 ARPGuard is a network security tool designed to scan networks, detect ARP spoofing attacks, and improve local network security. It offers both GUI and CLI interfaces for different use cases.
 
@@ -14,9 +16,11 @@ ARPGuard aims to be the go-to platform for comprehensive, easily deployable, and
 ## Version Status
 
 - **Current Version:** 0.2 (Enhanced UI and Core Features)
-- **Next Release:** 0.3 (Comprehensive Packet Analysis) - Coming Soon
+- **Next Release:** 0.3 (Comprehensive Packet Analysis) - Coming Q3 2024
 - **Development Status:** 92.7% test coverage achieved
 - **Roadmap Phase:** Phase 1 (Q2-Q4 2024) - Strengthening Core & Building Foundations
+- **ML Development:** Hybrid model architecture in progress (Q2-Q4 2024)
+- **Documentation:** Comprehensive version-controlled documentation with timestamps
 
 ## Key Features
 
@@ -31,6 +35,7 @@ ARPGuard aims to be the go-to platform for comprehensive, easily deployable, and
 - Statistical analysis of traffic patterns
 - Multiple export formats (HTML, PDF, CSV, JSON)
 - Light/Dark theme support
+- Comprehensive documentation system with version tracking
 
 ## Performance Metrics
 
@@ -47,6 +52,45 @@ ARPGuard aims to be the go-to platform for comprehensive, easily deployable, and
 - < 5 minutes mean time to respond to threats
 - < 5% false positive rate
 - 99.9% system uptime
+
+## Current Development Focus (Q2 2024)
+
+- Hybrid ML model architecture implementation
+- Two-layer detection approach (rules + ML)
+- Ensemble methods (Random Forest, Decision Trees)
+- Performance optimization for real-time processing
+- Comprehensive documentation management system
+
+## ML KPI Monitoring Tool
+
+ARPGuard includes a comprehensive ML KPI monitoring system to track the development, technical performance, operational health, and business impact of the machine learning module. The system is designed to align with the project health assessment documented in `docs/project_health.md`.
+
+### Key Features:
+
+- Track development progress of ML components
+- Monitor technical performance metrics (accuracy, latency, resource usage)
+- Assess operational integration and stability
+- Measure business impact and adoption
+- Generate visual dashboards and trend analysis
+- Support data-driven decision making for ML development
+
+### Usage:
+
+```bash
+# Import KPI data from YAML file
+python scripts/monitor_ml_kpis.py import --file data/ml_kpis_sample.yaml
+
+# Update a specific KPI
+python scripts/monitor_ml_kpis.py update --category development_kpis --name ml_environment --value 20.0
+
+# Generate reports
+python scripts/monitor_ml_kpis.py report
+
+# Generate specific charts
+python scripts/monitor_ml_kpis.py chart --category technical_kpis
+```
+
+The tool stores KPI data in JSON format and generates HTML dashboards with interactive charts. Reports are saved to the `reports/ml_kpis` directory.
 
 ## Installation
 
@@ -167,6 +211,32 @@ python run.py config --show
 python run.py config --set detector.start_on_launch true
 ```
 
+## Documentation
+
+ARPGuard features a comprehensive documentation system with:
+
+- Version control and timestamps
+- Status tracking for documentation files
+- Automatic validation and quality checks
+- Multi-language support
+- Searchable technical and user documentation
+
+To view documentation:
+
+```bash
+# Generate documentation
+python scripts/generate_docs.py
+
+# Check document status
+python scripts/version_docs.py scan
+
+# View version history of a document
+python scripts/version_docs.py history docs/path/to/document.md
+
+# Generate status report
+python scripts/generate_status_report.py
+```
+
 ## Development
 
 ### Project Structure
@@ -175,11 +245,12 @@ python run.py config --set detector.start_on_launch true
 ARPGuard/
 ├── app/
 │   ├── components/  # Core components
-│   ├── utils/       # Utility functions
-│   └── tests/       # Test suite
-├── data/            # Data files
-├── run.py           # Main entry point
-└── cli_tool.py      # CLI version
+│   ├── ml/          # Machine learning models
+│   └── utils/       # Utility functions
+├── docs/            # Documentation
+├── scripts/         # Utility scripts
+├── tests/           # Test suite
+└── run.py           # Main entry point
 ```
 
 ### Testing
@@ -219,6 +290,7 @@ Overall test coverage: 92.7% (114/123 tests)
 - ✅ Robust testing and QA
 - 🔄 Controller MVP development
 - ✅ Refined user experience
+- 🔄 Hybrid ML model architecture
 
 ### Phase 2 (Q1-Q3 2025)
 - 🔄 Multi-site management
@@ -244,4 +316,4 @@ This project is licensed under the MIT License - see the LICENSE file for detail
 - PyQt5 for the GUI framework
 - Open threat intelligence sources
 
-**Last Updated: April 3, 2024** 
+**Last Updated: April 6, 2024** 

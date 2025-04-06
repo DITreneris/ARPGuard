@@ -1,0 +1,140 @@
+# Sample ML KPIs for ARPGuard ML Module
+# Use this file with: python scripts/monitor_ml_kpis.py import --file data/ml_kpis_sample.yaml
+
+date: "2024-04-06"
+
+development_kpis:
+  ml_environment:
+    value: 15.0
+    details:
+      total_tasks: 20
+      completed_tasks: 3
+      status: "In Progress"
+      pending_items:
+        - "TensorFlow setup"
+        - "CUDA configuration"
+        - "Test dataset preparation"
+  
+  implementation_progress:
+    value: 5.0
+    details:
+      completed_components: 1
+      total_components: 20
+      status: "Starting"
+  
+  test_coverage:
+    value: 0.0
+    details:
+      total_tests: 0
+      passing_tests: 0
+      status: "Not Started"
+  
+  documentation:
+    value: 80.0
+    details:
+      status: "Planning Documentation"
+      completed_sections: 4
+      total_sections: 5
+  
+  code_quality:
+    value: 100.0
+    details:
+      linting_errors: 0
+      type_check_errors: 0
+      code_review_status: "Passed"
+
+technical_kpis:
+  model_accuracy:
+    value: 0.0
+    details:
+      status: "Not Started"
+      baseline: "N/A"
+  
+  false_positive_rate:
+    value: 0.0
+    details:
+      status: "Not Started"
+      baseline: "N/A"
+  
+  inference_latency:
+    value: 0.0
+    details:
+      status: "Not Started"
+      baseline: "N/A"
+  
+  memory_footprint:
+    value: 0.0
+    details:
+      status: "Not Started"
+      baseline: "N/A"
+  
+  cpu_utilization:
+    value: 0.0
+    details:
+      status: "Not Started"
+      baseline: "N/A"
+  
+  training_time:
+    value: 0.0
+    details:
+      status: "Not Started"
+      baseline: "N/A"
+
+operational_kpis:
+  model_drift:
+    value: 0.0
+    details:
+      status: "Not Started"
+  
+  integration_status:
+    value: 0.0
+    details:
+      status: "Preparing Design"
+      integration_points: 0
+      total_integration_points: 5
+  
+  resource_utilization:
+    value: 0.0
+    details:
+      status: "Not Started"
+  
+  user_feedback:
+    value: 0.0
+    details:
+      status: "Not Started"
+  
+  incident_response:
+    value: 0.0
+    details:
+      status: "N/A"
+
+business_kpis:
+  feature_completion:
+    value: 5.0
+    details:
+      status: "Planning Phase"
+      completed_features: 1
+      total_features: 20
+      current_milestone: "Architecture Design"
+  
+  quality_issues:
+    value: 0.0
+    details:
+      status: "No Issues"
+      open_bugs: 0
+      resolved_bugs: 0
+  
+  adoption_rate:
+    value: 0.0
+    details:
+      status: "Not Released"
+  
+  detection_improvement:
+    value: 0.0
+    details:
+      status: "Baseline Measurement Pending"
+  
+  cost_efficiency:
+    value: 0.0
+    details:
+      status: "Not Measured" 

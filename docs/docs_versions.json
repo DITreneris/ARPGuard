@@ -9,11 +9,57 @@
           "hash": "5cbc7b5707b8e172a1fafad48393276b4bf74707dcda5285ba17531fd7ee1b62",
           "timestamp": "2025-04-06T06:34:36.625397",
           "frontmatter": {}
+        },
+        {
+          "version": 3,
+          "hash": "a9c7db0f10d697dd625523900d6bba69339ad1f92fa8c812966b9e021ecc92bb",
+          "timestamp": "2025-04-06T06:36:12.530742",
+          "frontmatter": {
+            "version": 2,
+            "last_modified": "2025-04-06T06:34:36.625397",
+            "git_history": [
+              {
+                "hash": "9084c731e73afe38f3a7b9ad5028d553d3efa4eb",
+                "author": "DITreneris",
+                "date": "2025-04-06T06:16:52+03:00",
+                "message": "Initial commit: Project setup with ML components"
+              }
+            ]
+          }
+        },
+        {
+          "version": 4,
+          "hash": "7865bf5ae27649386df34e65372c68f9c0bc9a2bc80c114f5691eb1e5f9ee881",
+          "timestamp": "2025-04-06T06:51:27.614932",
+          "frontmatter": {
+            "version": 3,
+            "last_modified": "2025-04-06T06:36:12.530742",
+            "git_history": [
+              {
+                "hash": "ef3989ccbe50479c66e030aaee698d8d2e12ac0d",
+                "author": "User",
+                "date": "2025-04-06T06:36:00+03:00",
+                "message": "Initial commit"
+              },
+              {
+                "hash": "9084c731e73afe38f3a7b9ad5028d553d3efa4eb",
+                "author": "DITreneris",
+                "date": "2025-04-06T06:16:52+03:00",
+                "message": "Initial commit: Project setup with ML components"
+              }
+            ]
+          }
         }
       ],
-      "current_version": 2,
-      "last_modified": "2025-04-06T06:34:36.625397",
+      "current_version": 4,
+      "last_modified": "2025-04-06T06:51:27.614932",
       "git_history": [
+        {
+          "hash": "ef3989ccbe50479c66e030aaee698d8d2e12ac0d",
+          "author": "User",
+          "date": "2025-04-06T06:36:00+03:00",
+          "message": "Initial commit"
+        },
         {
           "hash": "9084c731e73afe38f3a7b9ad5028d553d3efa4eb",
           "author": "DITreneris",
@@ -30,11 +76,57 @@
           "hash": "53f6d51067ed5ea1517b029bfb20c622263a69dd99bde54fca48b796213a5f7b",
           "timestamp": "2025-04-06T06:34:36.710362",
           "frontmatter": {}
+        },
+        {
+          "version": 3,
+          "hash": "9ae60afb084fa3434bb4461e7dd7919f357ae0b0f661d347e3e54ed2e7588cc7",
+          "timestamp": "2025-04-06T06:36:12.637459",
+          "frontmatter": {
+            "version": 2,
+            "last_modified": "2025-04-06T06:34:36.710362",
+            "git_history": [
+              {
+                "hash": "9084c731e73afe38f3a7b9ad5028d553d3efa4eb",
+                "author": "DITreneris",
+                "date": "2025-04-06T06:16:52+03:00",
+                "message": "Initial commit: Project setup with ML components"
+              }
+            ]
+          }
+        },
+        {
+          "version": 4,
+          "hash": "a25f9b4ab4a06cf3cafaeaf31a3433ef74b65c81f6e6878d3f9d3993151d238e",
+          "timestamp": "2025-04-06T06:51:27.707320",
+          "frontmatter": {
+            "version": 3,
+            "last_modified": "2025-04-06T06:36:12.637459",
+            "git_history": [
+              {
+                "hash": "ef3989ccbe50479c66e030aaee698d8d2e12ac0d",
+                "author": "User",
+                "date": "2025-04-06T06:36:00+03:00",
+                "message": "Initial commit"
+              },
+              {
+                "hash": "9084c731e73afe38f3a7b9ad5028d553d3efa4eb",
+                "author": "DITreneris",
+                "date": "2025-04-06T06:16:52+03:00",
+                "message": "Initial commit: Project setup with ML components"
+              }
+            ]
+          }
         }
       ],
-      "current_version": 2,
-      "last_modified": "2025-04-06T06:34:36.710362",
+      "current_version": 4,
+      "last_modified": "2025-04-06T06:51:27.707320",
       "git_history": [
+        {
+          "hash": "ef3989ccbe50479c66e030aaee698d8d2e12ac0d",
+          "author": "User",
+          "date": "2025-04-06T06:36:00+03:00",
+          "message": "Initial commit"
+        },
         {
           "hash": "9084c731e73afe38f3a7b9ad5028d553d3efa4eb",
           "author": "DITreneris",
@@ -51,11 +143,45 @@
           "hash": "33c3fb4df1c4b2c9d6d4e38870dae75fa253299ffce2145a7dba65da4f93973f",
           "timestamp": "2025-04-06T06:34:36.791890",
           "frontmatter": {}
+        },
+        {
+          "version": 3,
+          "hash": "478cf636d6287259dea1d00d482b4502f910b5573da8d2c6a79a79493558ea85",
+          "timestamp": "2025-04-06T06:36:12.727217",
+          "frontmatter": {
+            "version": 2,
+            "last_modified": "2025-04-06T06:34:36.791890",
+            "git_history": []
+          }
+        },
+        {
+          "version": 4,
+          "hash": "7ba3f6c47519eb8880aeecbe57635fe93081e7161ddc86deb3cced9f66ab3ccb",
+          "timestamp": "2025-04-06T06:51:27.800390",
+          "frontmatter": {
+            "version": 3,
+            "last_modified": "2025-04-06T06:36:12.727217",
+            "git_history": [
+              {
+                "hash": "ef3989ccbe50479c66e030aaee698d8d2e12ac0d",
+                "author": "User",
+                "date": "2025-04-06T06:36:00+03:00",
+                "message": "Initial commit"
+              }
+            ]
+          }
         }
       ],
-      "current_version": 2,
-      "last_modified": "2025-04-06T06:34:36.791890",
-      "git_history": []
+      "current_version": 4,
+      "last_modified": "2025-04-06T06:51:27.800390",
+      "git_history": [
+        {
+          "hash": "ef3989ccbe50479c66e030aaee698d8d2e12ac0d",
+          "author": "User",
+          "date": "2025-04-06T06:36:00+03:00",
+          "message": "Initial commit"
+        }
+      ]
     },
     "docs\\ml_integration.md": {
       "path": "ml_integration.md",
@@ -65,11 +191,57 @@
           "hash": "2c2e045afd5937b6720b5c02c2eb6d6eae7f745bff2a2039968edf650777860a",
           "timestamp": "2025-04-06T06:34:36.867774",
           "frontmatter": {}
+        },
+        {
+          "version": 3,
+          "hash": "5fb72bb59fc3f58611a5b047322c2e900defc5ec33d997ce027660efab6fe06e",
+          "timestamp": "2025-04-06T06:36:12.812990",
+          "frontmatter": {
+            "version": 2,
+            "last_modified": "2025-04-06T06:34:36.867774",
+            "git_history": [
+              {
+                "hash": "9084c731e73afe38f3a7b9ad5028d553d3efa4eb",
+                "author": "DITreneris",
+                "date": "2025-04-06T06:16:52+03:00",
+                "message": "Initial commit: Project setup with ML components"
+              }
+            ]
+          }
+        },
+        {
+          "version": 4,
+          "hash": "84d9f97bd7336880232038099e3a579e4aa53f7eb7d4f240905f028f710441ad",
+          "timestamp": "2025-04-06T06:51:27.888802",
+          "frontmatter": {
+            "version": 3,
+            "last_modified": "2025-04-06T06:36:12.812990",
+            "git_history": [
+              {
+                "hash": "ef3989ccbe50479c66e030aaee698d8d2e12ac0d",
+                "author": "User",
+                "date": "2025-04-06T06:36:00+03:00",
+                "message": "Initial commit"
+              },
+              {
+                "hash": "9084c731e73afe38f3a7b9ad5028d553d3efa4eb",
+                "author": "DITreneris",
+                "date": "2025-04-06T06:16:52+03:00",
+                "message": "Initial commit: Project setup with ML components"
+              }
+            ]
+          }
         }
       ],
-      "current_version": 2,
-      "last_modified": "2025-04-06T06:34:36.867774",
+      "current_version": 4,
+      "last_modified": "2025-04-06T06:51:27.888802",
       "git_history": [
+        {
+          "hash": "ef3989ccbe50479c66e030aaee698d8d2e12ac0d",
+          "author": "User",
+          "date": "2025-04-06T06:36:00+03:00",
+          "message": "Initial commit"
+        },
         {
           "hash": "9084c731e73afe38f3a7b9ad5028d553d3efa4eb",
           "author": "DITreneris",
@@ -86,11 +258,57 @@
           "hash": "c3158d9ca6f464296c9dad87be72812d6a4714c5bd5a4025c2bd98c50d693d63",
           "timestamp": "2025-04-06T06:34:36.945730",
           "frontmatter": {}
+        },
+        {
+          "version": 3,
+          "hash": "6387e32981532fa90f31cbc5aa15754c030439626342b6efb94f1d82ff98836a",
+          "timestamp": "2025-04-06T06:36:12.896391",
+          "frontmatter": {
+            "version": 2,
+            "last_modified": "2025-04-06T06:34:36.945730",
+            "git_history": [
+              {
+                "hash": "9084c731e73afe38f3a7b9ad5028d553d3efa4eb",
+                "author": "DITreneris",
+                "date": "2025-04-06T06:16:52+03:00",
+                "message": "Initial commit: Project setup with ML components"
+              }
+            ]
+          }
+        },
+        {
+          "version": 4,
+          "hash": "5ae5c184d7b197c515fde619771b01940658e98ecb7b1827cf8ce95c2afec1ac",
+          "timestamp": "2025-04-06T06:51:27.980896",
+          "frontmatter": {
+            "version": 3,
+            "last_modified": "2025-04-06T06:36:12.896391",
+            "git_history": [
+              {
+                "hash": "ef3989ccbe50479c66e030aaee698d8d2e12ac0d",
+                "author": "User",
+                "date": "2025-04-06T06:36:00+03:00",
+                "message": "Initial commit"
+              },
+              {
+                "hash": "9084c731e73afe38f3a7b9ad5028d553d3efa4eb",
+                "author": "DITreneris",
+                "date": "2025-04-06T06:16:52+03:00",
+                "message": "Initial commit: Project setup with ML components"
+              }
+            ]
+          }
         }
       ],
-      "current_version": 2,
-      "last_modified": "2025-04-06T06:34:36.945730",
+      "current_version": 4,
+      "last_modified": "2025-04-06T06:51:27.980896",
       "git_history": [
+        {
+          "hash": "ef3989ccbe50479c66e030aaee698d8d2e12ac0d",
+          "author": "User",
+          "date": "2025-04-06T06:36:00+03:00",
+          "message": "Initial commit"
+        },
         {
           "hash": "9084c731e73afe38f3a7b9ad5028d553d3efa4eb",
           "author": "DITreneris",
@@ -107,11 +325,57 @@
           "hash": "9da09cd6204366bba3698df7dcb6848cecf63b84135a19400749582b48f21acc",
           "timestamp": "2025-04-06T06:34:37.027219",
           "frontmatter": {}
+        },
+        {
+          "version": 3,
+          "hash": "75ba8546cee7fa842eaed5f3c6f8c3e813415318463ab3f28f3acaba2ca79bf9",
+          "timestamp": "2025-04-06T06:36:12.993282",
+          "frontmatter": {
+            "version": 2,
+            "last_modified": "2025-04-06T06:34:37.027219",
+            "git_history": [
+              {
+                "hash": "29b832eb38d3ced4d071cd4afd35c6e6a868301f",
+                "author": "DITreneris",
+                "date": "2025-04-06T06:17:51+03:00",
+                "message": "docs: implement documentation version control and pre-commit hooks"
+              }
+            ]
+          }
+        },
+        {
+          "version": 4,
+          "hash": "3c5024df8ad9c9bccdca471dfcf792c3f3b2f95fb188c90dbb88073d6d3cbc56",
+          "timestamp": "2025-04-06T06:51:28.076828",
+          "frontmatter": {
+            "version": 3,
+            "last_modified": "2025-04-06T06:36:12.993282",
+            "git_history": [
+              {
+                "hash": "ef3989ccbe50479c66e030aaee698d8d2e12ac0d",
+                "author": "User",
+                "date": "2025-04-06T06:36:00+03:00",
+                "message": "Initial commit"
+              },
+              {
+                "hash": "29b832eb38d3ced4d071cd4afd35c6e6a868301f",
+                "author": "DITreneris",
+                "date": "2025-04-06T06:17:51+03:00",
+                "message": "docs: implement documentation version control and pre-commit hooks"
+              }
+            ]
+          }
         }
       ],
-      "current_version": 2,
-      "last_modified": "2025-04-06T06:34:37.027219",
+      "current_version": 4,
+      "last_modified": "2025-04-06T06:51:28.076828",
       "git_history": [
+        {
+          "hash": "ef3989ccbe50479c66e030aaee698d8d2e12ac0d",
+          "author": "User",
+          "date": "2025-04-06T06:36:00+03:00",
+          "message": "Initial commit"
+        },
         {
           "hash": "29b832eb38d3ced4d071cd4afd35c6e6a868301f",
           "author": "DITreneris",
@@ -128,11 +392,45 @@
           "hash": "778c514ac45de8e1367b8d95d73e36ddf44edcfb778de9146d89d9484667d30b",
           "timestamp": "2025-04-06T06:34:37.116243",
           "frontmatter": {}
+        },
+        {
+          "version": 3,
+          "hash": "2b3ce17661b8a34ce5ecfa68840895dc047dfbec68740a152aad8f1c077ebd2b",
+          "timestamp": "2025-04-06T06:36:13.081593",
+          "frontmatter": {
+            "version": 2,
+            "last_modified": "2025-04-06T06:34:37.116243",
+            "git_history": []
+          }
+        },
+        {
+          "version": 4,
+          "hash": "db7f86505fb359e3bd46fa71c00f91b71a5aa778efca00087fa5acf6c6f84e9d",
+          "timestamp": "2025-04-06T06:51:28.220287",
+          "frontmatter": {
+            "version": 3,
+            "last_modified": "2025-04-06T06:36:13.081593",
+            "git_history": [
+              {
+                "hash": "ef3989ccbe50479c66e030aaee698d8d2e12ac0d",
+                "author": "User",
+                "date": "2025-04-06T06:36:00+03:00",
+                "message": "Initial commit"
+              }
+            ]
+          }
         }
       ],
-      "current_version": 2,
-      "last_modified": "2025-04-06T06:34:37.116243",
-      "git_history": []
+      "current_version": 4,
+      "last_modified": "2025-04-06T06:51:28.220287",
+      "git_history": [
+        {
+          "hash": "ef3989ccbe50479c66e030aaee698d8d2e12ac0d",
+          "author": "User",
+          "date": "2025-04-06T06:36:00+03:00",
+          "message": "Initial commit"
+        }
+      ]
     },
     "docs\\user_manual\\README.md": {
       "path": "user_manual\\README.md",
@@ -142,11 +440,57 @@
           "hash": "9321fc7e22f5f482b754b5a9b9699d84b0cb02b3f2ce85cbe40d7dc69a62f6e5",
           "timestamp": "2025-04-06T06:34:37.206187",
           "frontmatter": {}
+        },
+        {
+          "version": 3,
+          "hash": "900621d06895b45552def90bf3018bf277419acd6f6adfbe72d42abce3d68d94",
+          "timestamp": "2025-04-06T06:36:13.170357",
+          "frontmatter": {
+            "version": 2,
+            "last_modified": "2025-04-06T06:34:37.206187",
+            "git_history": [
+              {
+                "hash": "9084c731e73afe38f3a7b9ad5028d553d3efa4eb",
+                "author": "DITreneris",
+                "date": "2025-04-06T06:16:52+03:00",
+                "message": "Initial commit: Project setup with ML components"
+              }
+            ]
+          }
+        },
+        {
+          "version": 4,
+          "hash": "c40f233b3a6c7aa7e8cc8ac4cd81a036b6372352c87aabfc0931fe80ed092c90",
+          "timestamp": "2025-04-06T06:51:28.336658",
+          "frontmatter": {
+            "version": 3,
+            "last_modified": "2025-04-06T06:36:13.170357",
+            "git_history": [
+              {
+                "hash": "ef3989ccbe50479c66e030aaee698d8d2e12ac0d",
+                "author": "User",
+                "date": "2025-04-06T06:36:00+03:00",
+                "message": "Initial commit"
+              },
+              {
+                "hash": "9084c731e73afe38f3a7b9ad5028d553d3efa4eb",
+                "author": "DITreneris",
+                "date": "2025-04-06T06:16:52+03:00",
+                "message": "Initial commit: Project setup with ML components"
+              }
+            ]
+          }
         }
       ],
-      "current_version": 2,
-      "last_modified": "2025-04-06T06:34:37.206187",
+      "current_version": 4,
+      "last_modified": "2025-04-06T06:51:28.336658",
       "git_history": [
+        {
+          "hash": "ef3989ccbe50479c66e030aaee698d8d2e12ac0d",
+          "author": "User",
+          "date": "2025-04-06T06:36:00+03:00",
+          "message": "Initial commit"
+        },
         {
           "hash": "9084c731e73afe38f3a7b9ad5028d553d3efa4eb",
           "author": "DITreneris",
@@ -156,9 +500,9 @@
       ]
     }
   },
-  "last_updated": "2025-04-06T06:34:37.208179",
+  "last_updated": "2025-04-06T06:51:28.345763",
   "metadata": {
-    "total_versions": 8,
+    "total_versions": 24,
     "total_documents": 8
   }
 }
