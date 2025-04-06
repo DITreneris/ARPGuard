@@ -1,0 +1,93 @@
+[MASTER]
+disable=
+    C0111, # missing-docstring
+    C0103, # invalid-name
+    C0330, # bad-continuation
+    C1801, # len-as-condition
+    W0703, # broad-except
+    R0903, # too-few-public-methods
+    R0913, # too-many-arguments
+    R0914, # too-many-locals
+    W0212, # protected-access
+    R0201, # no-self-use
+
+# Maximum line length
+max-line-length=100
+
+# Good variable names which should always be accepted
+good-names=i,j,k,ex,Run,_,id,ip,db
+
+[REPORTS]
+# Set the output format
+output-format=text
+
+# Tells whether to display a full report or only the messages
+reports=yes
+
+# Python expression which should return a score less than or equal to 10.
+evaluation=10.0 - ((float(5 * error + warning + refactor + convention) / statement) * 10)
+
+# Template used to display messages
+msg-template={path}:{line}:{column}: {msg_id}: {msg} ({symbol})
+
+[TYPECHECK]
+# List of module names for which member attributes should not be checked
+ignored-modules=PyQt5,scapy,netifaces
+
+# List of classes names for which member attributes should not be checked
+ignored-classes=SQLObject
+
+[DESIGN]
+# Maximum number of arguments for function / method
+max-args=10
+
+# Maximum number of locals for function / method 
+max-locals=20
+
+# Maximum number of return / yield for function / method 
+max-returns=6
+
+# Maximum number of branch for function / method
+max-branches=12
+
+# Maximum number of statements in function / method 
+max-statements=50
+
+# Maximum number of parents for a class
+max-parents=7
+
+# Maximum number of attributes for a class
+max-attributes=11
+
+# Minimum number of public methods for a class
+min-public-methods=0
+
+# Maximum number of public methods for a class 
+max-public-methods=20
+
+[SIMILARITIES]
+# Minimum lines number of a similarity
+min-similarity-lines=4
+
+# Ignore comments when computing similarities
+ignore-comments=yes
+
+# Ignore docstrings when computing similarities
+ignore-docstrings=yes
+
+# Ignore imports when computing similarities
+ignore-imports=yes
+
+[FORMAT]
+# Maximum number of characters on a single line
+max-line-length=100
+
+# Maximum number of lines in a module
+max-module-lines=1000
+
+# String used as indentation unit
+indent-string='    '
+
+[EXCEPTIONS]
+# Exceptions that will emit a warning when being caught
+overgeneral-exceptions=Exception 
