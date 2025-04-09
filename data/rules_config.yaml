@@ -1,0 +1,103 @@
+rules:
+  # ARP spoofing detection rules
+  ARP_SPOOFING_001:
+    description: "ARP spoofing - MAC address changed for existing IP"
+    condition: "packet.op == 2 and check_mac_change(packet.src_ip, packet.src_mac)"
+    severity: "HIGH"
+    enabled: true
+    threshold: 0.8
+    cooldown: 60
+    tags: ["spoofing", "arp"]
+    
+  ARP_SPOOFING_002:
+    description: "ARP spoofing - Gateway impersonation"
+    condition: "packet.op == 2 and is_gateway(packet.src_ip) and not is_valid_gateway_mac(packet.src_mac)"
+    severity: "CRITICAL"
+    enabled: true
+    threshold: 0.9
+    cooldown: 30
+    tags: ["spoofing", "arp", "gateway"]
+    
+  # Gratuitous ARP detection rules
+  ARP_GRATUITOUS_001:
+    description: "Suspicious gratuitous ARP packet"
+    condition: "packet.op == 2 and packet.src_ip == packet.dst_ip"
+    severity: "MEDIUM"
+    enabled: true
+    threshold: 0.7
+    cooldown: 120
+    tags: ["gratuitous", "arp"]
+    
+  ARP_GRATUITOUS_002:
+    description: "Multiple gratuitous ARP packets from same host"
+    condition: "packet.op == 2 and packet.src_ip == packet.dst_ip and count_packets(packet.src_mac, window=10) > 5"
+    severity: "HIGH"
+    enabled: true
+    threshold: 0.8
+    cooldown: 60
+    tags: ["gratuitous", "arp", "flood"]
+    
+  # ARP flood detection rules
+  ARP_FLOOD_001:
+    description: "ARP request flood from single source"
+    condition: "packet.op == 1 and count_packets(packet.src_mac, window=5) > 20"
+    severity: "CRITICAL"
+    enabled: true
+    threshold: 0.9
+    cooldown: 30
+    tags: ["flood", "arp", "dos"]
+    
+  ARP_FLOOD_002:
+    description: "ARP reply flood from single source"
+    condition: "packet.op == 2 and count_packets(packet.src_mac, window=5) > 15"
+    severity: "HIGH"
+    enabled: true
+    threshold: 0.85
+    cooldown: 45
+    tags: ["flood", "arp", "dos"]
+    
+  # MITM detection rules
+  ARP_MITM_001:
+    description: "Potential Man-in-the-Middle attack"
+    condition: "packet.op == 2 and has_multiple_ips_same_mac(packet.src_mac)"
+    severity: "HIGH"
+    enabled: true
+    threshold: 0.85
+    cooldown: 90
+    tags: ["mitm", "arp", "spoofing"]
+    
+  ARP_MITM_002:
+    description: "Multiple ARP replies for single request"
+    condition: "packet.op == 2 and multiple_replies_same_request(packet)"
+    severity: "HIGH"
+    enabled: true
+    threshold: 0.8
+    cooldown: 60
+    tags: ["mitm", "arp", "spoofing"]
+    
+  # Reconnaissance detection rules
+  ARP_RECON_001:
+    description: "ARP scan detected"
+    condition: "packet.op == 1 and is_sequential_scan(packet)"
+    severity: "MEDIUM"
+    enabled: true
+    threshold: 0.75
+    cooldown: 300
+    tags: ["recon", "arp", "scan"]
+    
+  # Unusual behavior rules
+  ARP_UNUSUAL_001:
+    description: "ARP with unusual protocol flags"
+    condition: "has_unusual_flags(packet)"
+    severity: "MEDIUM"
+    enabled: true
+    threshold: 0.7
+    cooldown: 180
+    tags: ["unusual", "arp"]
+
+# Global rule settings
+settings:
+  history_window: 300  # seconds to maintain history for
+  max_detections: 1000  # maximum number of detections to store
+  default_cooldown: 60  # default cooldown in seconds
+  save_detections: true  # whether to save detections to disk 

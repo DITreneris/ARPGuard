@@ -1,0 +1,79 @@
+# ARPGuard Configuration File
+# This is a template configuration file that can be customized 
+# according to your needs.
+
+general:
+  # Logging level (DEBUG, INFO, WARNING, ERROR, CRITICAL)
+  log_level: INFO
+  
+  # Log file location
+  log_file: arpguard.log
+  
+  # Enable colorized terminal output
+  color_output: true
+  
+  # Show progress indicators during operations
+  progress_indicators: true
+
+scan:
+  # Default network interface (leave empty for auto-detection)
+  default_interface: ""
+  
+  # Default timeout in seconds for scan operations
+  default_timeout: 2
+  
+  # Default ports to scan
+  default_ports:
+    - 22    # SSH
+    - 80    # HTTP
+    - 443   # HTTPS
+    - 3389  # RDP
+    - 5900  # VNC
+  
+  # Default subnet to scan (leave empty for auto-detection)
+  default_subnet: ""
+  
+  # Classify devices by type using MAC address
+  classify_devices: true
+  
+  # Output format (table, json, csv)
+  output_format: table
+
+monitor:
+  # Default network interface (leave empty for auto-detection)
+  default_interface: ""
+  
+  # Alert level (low, medium, high)
+  alert_level: medium
+  
+  # Check interval in seconds
+  check_interval: 2
+  
+  # Output format (normal, json)
+  output_format: normal
+  
+  # Known devices database file
+  known_devices_file: known_devices.json
+
+analyze:
+  # Directory for packet captures
+  pcap_dir: captures
+  
+  # Maximum packets to analyze
+  max_packets: 10000
+  
+  # Filter expression for packet analysis
+  filter_expression: ""
+  
+  # Output format (table, json, csv)
+  output_format: table
+
+export:
+  # Default export format (json, csv, html, pdf)
+  default_format: json
+  
+  # Default directory for exports
+  default_dir: exports
+  
+  # Include metadata in exports
+  include_metadata: true 

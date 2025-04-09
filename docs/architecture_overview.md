@@ -1,7 +1,11 @@
 ---
-version: 4
-last_modified: '2025-04-06T06:51:27.707320'
+version: 10
+last_modified: '2025-04-06T07:28:37.504882'
 git_history:
+- hash: 6a86e9ce0eddba890b90c8b1f9c8d192aaedae82
+  author: User
+  date: '2025-04-06T07:06:49+03:00'
+  message: 'Initial commit: ARPGuard project with ML KPI monitoring system'
 - hash: ef3989ccbe50479c66e030aaee698d8d2e12ac0d
   author: User
   date: '2025-04-06T06:36:00+03:00'
@@ -14,253 +18,294 @@ git_history:
 
 # ARPGuard Architecture Overview
 
-This document provides a high-level overview of the ARPGuard architecture, including component organization, data flow, and design patterns.
-
 ## System Architecture
 
-ARPGuard follows a modular architecture with clear separation of concerns between components. The application is organized into several key layers:
-
-1. **Core Components**: Fundamental network security and analysis functionality
-2. **UI Components**: User interface elements for visualization and interaction
-3. **Utility Modules**: Common functionality shared across the application
-4. **Storage**: Persistence of settings, scanned data, and security events
-
-![ARPGuard Architecture Diagram](architecture_diagram.png)
-
-## Core Components
-
-### Component Relationships
-
-The core components form the foundation of ARPGuard's functionality and interact closely with each other:
+ARPGuard is designed as a modular, extensible network security monitoring system with a focus on ARP spoofing detection and prevention. This document provides an overview of the architecture, components, and data flows.
 
 ```
-NetworkScanner ─────┬───────────────────┬─────────────────┐
-                    │                   │                 │
-                    ▼                   │                 │
-               ARPSpoofer ──────────────┤                 │
-                    │                   │                 │
-                    ▼                   ▼                 ▼
-              ThreatDetector ────► PacketAnalyzer ───► AttackRecognizer
-                    │                   │                 │
-                    │                   │                 │
-                    ▼                   ▼                 ▼
-        DefenseMechanism ◄───── ThreatIntelligence ◄─── VulnerabilityScanner
+┌───────────────────────────────────────────────────────────────┐
+│                      User Interfaces                          │
+│                                                               │
+│  ┌───────────────┐               ┌───────────────────────┐    │
+│  │ Command Line  │               │ Graphical Interface   │    │
+│  │ Interface     │◄──────────────►  (Future)             │    │
+│  └───────┬───────┘               └───────────────────────┘    │
+│          │                                                     │
+└──────────┼─────────────────────────────────────────────────────┘
+           │
+┌──────────▼─────────────────────────────────────────────────────┐
+│                      Core Components                           │
+│                                                                │
+│  ┌────────────────┐   ┌─────────────────┐   ┌───────────────┐  │
+│  │ Network        │   │ ARP Cache       │   │ Packet        │  │
+│  │ Scanner        │◄──►  Monitor        │◄──►  Analyzer     │  │
+│  └────────┬───────┘   └────────┬────────┘   └───────┬───────┘  │
+│           │                    │                    │          │
+│  ┌────────▼───────┐   ┌────────▼────────┐   ┌──────▼────────┐  │
+│  │ Device         │   │ Threat          │   │ Traffic       │  │
+│  │ Discovery      │◄──►  Detector       │◄──►  Analyzer     │  │
+│  └────────────────┘   └─────────────────┘   └───────────────┘  │
+│                                                                │
+└────────────────────────────────┬───────────────────────────────┘
+                                 │
+┌────────────────────────────────▼───────────────────────────────┐
+│                      Support Services                          │
+│                                                                │
+│  ┌────────────────┐   ┌─────────────────┐   ┌───────────────┐  │
+│  │ Configuration  │   │ Logging &       │   │ Data          │  │
+│  │ Manager        │   │ Monitoring      │   │ Storage       │  │
+│  └────────────────┘   └─────────────────┘   └───────────────┘  │
+│                                                                │
+└────────────────────────────────┬───────────────────────────────┘
+                                 │
+┌────────────────────────────────▼───────────────────────────────┐
+│                      ML Components (Future)                    │
+│                                                                │
+│  ┌────────────────┐   ┌─────────────────┐   ┌───────────────┐  │
+│  │ Feature        │   │ ML Model        │   │ Anomaly       │  │
+│  │ Extraction     │◄──►  Pipeline       │◄──►  Detection    │  │
+│  └────────────────┘   └─────────────────┘   └───────────────┘  │
+│                                                                │
+└────────────────────────────────────────────────────────────────┘
 ```
 
-### Component Responsibilities
+## Component Descriptions
 
-Each core component has a specific responsibility within the system:
+### User Interfaces
 
-#### NetworkScanner
-- Discovers network devices via ARP requests
-- Determines network range and topology
+#### Command Line Interface (CLI)
+- Provides command-based access to all ARPGuard functionality
+- Supports network scanning, monitoring, analysis, and configuration
+- Offers various output formats (table, JSON, CSV)
+- Implements progress reporting and colorized output
+- Located in `app/components/cli.py`
+
+#### Graphical Interface (Future)
+- Will provide a dashboard-based view of network security status
+- Planned for Lite Tier and above
+- Will include real-time monitoring and alerts
+
+### Core Components
+
+#### Network Scanner
+- Discovers devices on the network using ARP requests
 - Maps IP addresses to MAC addresses
-- Resolves hostnames and vendors
-- Maintains device history
+- Detects network topology and gateway devices
+- Located in `app/components/network_scanner.py`
 
-#### ARPSpoofer
-- Simulates ARP spoofing attacks for testing
-- Monitors ARP traffic for suspicious activity
-- Verifies ARP cache integrity
-- Detects gateway impersonation attempts
-- Provides ARP-specific defense mechanisms
+#### Device Discovery
+- Builds on the Network Scanner to identify and classify devices
+- Performs port scanning and OS fingerprinting
+- Identifies device types based on open ports and MAC OUI
+- Located in `app/components/device_discovery.py`
 
-#### ThreatDetector
-- Analyzes network traffic for security threats
-- Integrates data from multiple components
-- Classifies threats by severity
-- Generates security alerts
-- Manages threat history
+#### ARP Cache Monitor
+- Monitors the ARP cache for changes and anomalies
+- Detects ARP poisoning attempts
+- Identifies MAC address conflicts and changes
+- Located in `app/components/arp_cache_monitor.py`
 
-#### PacketAnalyzer
-- Captures network packets
-- Parses packet headers and payloads
-- Identifies protocols and applications
-- Provides filtering and search capabilities
-- Calculates traffic statistics
+#### Threat Detector
+- Analyzes network traffic patterns for suspicious behavior
+- Identifies known attack signatures
+- Correlates multiple indicators for threat detection
+- Located in `app/components/threat_detector.py`
 
-#### AttackRecognizer
-- Identifies attack patterns in network traffic
-- Supports multiple attack signatures
-- Collects evidence for detected attacks
-- Tracks attack lifecycle
-- Recommends defense strategies
+#### Packet Analyzer
+- Captures and analyzes network packets 
+- Performs deep packet inspection
+- Reconstructs network flows and sessions
+- Located in `app/components/packet_analyzer.py`
 
-#### ThreatIntelligence
-- Integrates with external threat intelligence sources
-- Identifies known malicious IPs and domains
-- Provides attack signature database
-- Enhances threat detection with global data
-- Manages threat intelligence update cycles
+#### Traffic Analyzer
+- Analyzes traffic patterns over time
+- Detects bandwidth anomalies and unusual connections
+- Provides statistical analysis of network traffic
+- Located in `app/components/traffic_analyzer.py`
 
-#### VulnerabilityScanner
-- Identifies potential vulnerabilities in network devices
-- Performs port scanning and service identification
-- Detects misconfigured services
-- Tests common security weaknesses
-- Provides remediation recommendations
+### Support Services
 
-#### DefenseMechanism
-- Implements countermeasures against detected threats
-- Manages static ARP entries
-- Supports traffic filtering rules
-- Provides blocking mechanisms
-- Monitors defense effectiveness
+#### Configuration Manager
+- Manages application configurations using YAML format
+- Provides validation and schema enforcement
+- Supports multiple configuration locations
+- Offers CLI interface for configuration management
+- Located in `app/utils/config.py`
 
-## UI Components
+#### Logging & Monitoring
+- Provides structured logging capabilities
+- Supports multiple log levels and formats
+- Enables performance monitoring and telemetry
+- Located in `app/utils/logger.py`
 
-The UI layer presents information to the user and allows interaction with the core functionality. It follows the Model-View pattern, separating data models from their visual representation.
+#### Data Storage
+- Stores scan results, monitoring data, and alerts
+- Supports various export formats (JSON, CSV)
+- Manages historical data and trend analysis
+- Located in `app/utils/database.py`
 
-### Key UI Components
+### ML Components (Future)
 
-- **MainWindow**: Primary application window and container
-- **PacketView**: Displays and filters captured packets
-- **AttackView**: Shows detected attack patterns
-- **NetworkTopologyView**: Visualizes network layout and relationships
-- **VulnerabilityView**: Displays detected vulnerabilities
-- **ThreatIntelligenceView**: Shows threat intelligence data
-- **DefenseView**: Manages defense mechanisms
-- **ReportViewer**: Generates and displays reports
-- **SessionHistoryView**: Manages historical sessions
+#### Feature Extraction
+- Extracts relevant features from network traffic
+- Processes raw packet data into ML-ready formats
+- Implements dimensionality reduction and feature selection
+- Located in `app/ml/features/extractor.py`
 
-### UI Design Principles
+#### ML Model Pipeline
+- Implements the machine learning workflow
+- Trains, validates, and deploys models
+- Supports online learning for adaptive detection
+- Located in `app/ml/pipeline/`
 
-The UI follows these key design principles:
+#### Anomaly Detection
+- Detects unusual network patterns
+- Identifies zero-day attacks without signatures
+- Adapts to evolving network conditions
+- Located in `app/ml/models/`
 
-1. **Separation of concerns**: UI components don't implement business logic
-2. **Event-driven communication**: Components communicate via events/signals
-3. **Lazy initialization**: Features load on demand for better performance
-4. **Responsive updates**: Background operations don't block the UI
-5. **Consistent styling**: Unified visual language across components
+## Data Flows
 
-## Utility Modules
+### Network Scanning Flow
 
-Utility modules provide common functionality used throughout the application:
+```
+┌──────────────┐     ┌────────────────┐     ┌─────────────────┐
+│ User         │     │ Network        │     │ Device          │
+│ Interface    │────►│ Scanner        │────►│ Discovery       │
+└──────────────┘     └────────────────┘     └─────────┬───────┘
+                                                      │
+┌──────────────┐     ┌────────────────┐     ┌─────────▼───────┐
+│ Export       │◄────│ Data           │◄────│ Result          │
+│ Format       │     │ Storage        │     │ Processing      │
+└──────────────┘     └────────────────┘     └─────────────────┘
+```
 
-### Key Utilities
+1. User initiates a scan through the CLI with parameters (subnet, timeout, etc.)
+2. Network Scanner sends ARP requests and collects responses
+3. Device Discovery classifies devices and performs additional probing
+4. Results are processed, enhanced with metadata, and stored
+5. Data is formatted according to user preferences and presented
 
-- **Config**: Configuration management and persistence
-- **Logger**: Application-wide logging system
-- **Database**: Data storage and retrieval
-- **MacVendor**: MAC address to vendor name resolution
-- **Icons**: Application iconography
-- **Dashboard Improvements**: Reusable dashboard components
-- **Reporting Improvements**: Report generation utilities
+### Monitoring Flow
 
-## Data Flow
+```
+┌──────────────┐     ┌────────────────┐     ┌─────────────────┐
+│ User         │     │ ARP Cache      │     │ Threat          │
+│ Interface    │────►│ Monitor        │────►│ Detector        │
+└──────────────┘     └────────┬───────┘     └─────────┬───────┘
+                              │                       │
+                     ┌────────▼───────┐     ┌─────────▼───────┐
+                     │ Alert          │◄────│ Analysis        │
+                     │ System         │     │ Engine          │
+                     └────────────────┘     └─────────────────┘
+```
 
-### Scanning and Detection Process
+1. User starts monitoring through the CLI with parameters (interface, alert level, etc.)
+2. ARP Cache Monitor continuously checks the system ARP cache for changes
+3. Suspicious changes are passed to the Threat Detector for analysis
+4. Threat Detector correlates information and determines threat level
+5. Alerts are generated based on severity and user preferences
 
-1. **NetworkScanner** discovers devices on the local network
-2. Device information is stored in the database
-3. **PacketAnalyzer** captures network traffic
-4. Packets are analyzed by **ThreatDetector** and **AttackRecognizer**
-5. **ThreatIntelligence** enhances detection with external data
-6. Alerts are generated for suspicious activity
-7. **DefenseMechanism** activates appropriate countermeasures
-8. Results are displayed in the UI and stored for reporting
+### Configuration Flow
 
-### Data Persistence
+```
+┌──────────────┐     ┌────────────────┐     ┌─────────────────┐
+│ User         │     │ CLI Config     │     │ Config          │
+│ Interface    │────►│ Commands       │────►│ Manager         │
+└──────────────┘     └────────────────┘     └─────────┬───────┘
+                                                      │
+                                            ┌─────────▼───────┐
+                                            │ Config          │
+                                            │ File (YAML)     │
+                                            └─────────────────┘
+```
 
-ARPGuard stores several types of data:
+1. User manages configuration through the CLI
+2. Config commands process and validate input
+3. Configuration Manager updates the configuration data
+4. Changes are persisted to the configuration file in YAML format
+5. Components access configuration via the Configuration Manager
 
-1. **Configuration**: User preferences and settings
-2. **Scan Results**: Discovered network devices
-3. **Packet Captures**: Network traffic data
-4. **Security Events**: Detected threats and attacks
-5. **Vulnerabilities**: Identified security weaknesses
-6. **Defense History**: Applied defense mechanisms
-7. **Reports**: Generated security reports
+## Component Interactions
 
-## Design Patterns
+### CLI and Core Components
+The CLI acts as the primary interface between the user and the core components. It:
+- Parses command-line arguments and validates input
+- Routes commands to the appropriate component
+- Formats output for user presentation
+- Handles signals and interrupts
 
-ARPGuard implements several common design patterns:
+### Core Component Integration
+Core components interact with each other through well-defined interfaces:
+- Network Scanner provides device information to the Device Discovery module
+- ARP Cache Monitor feeds data to the Threat Detector for analysis
+- Packet Analyzer supplies processed packets to the Traffic Analyzer
+- All components use Support Services for configuration, logging, and data storage
 
-### Observer Pattern
-Used for event notification between components. Components register callbacks to receive notifications when relevant events occur.
+### Data Sharing
+Components share data through standardized data structures:
+- Device information is shared as dictionaries with consistent keys
+- Alerts follow a standard format with severity, source, and message
+- Network packets are shared using common packet representation formats
+- Results are serializable to common formats like JSON for persistence
 
-Example: UI components register callbacks with core components to receive updates.
+## Tiered Architecture
 
-### Singleton Pattern
-Used for components that should have only one instance throughout the application.
+ARPGuard implements a tiered product strategy, with each tier building on the previous one:
 
-Example: Configuration and logging are implemented as singletons.
+### Demo Tier
+- Core CLI interface
+- Basic network scanning and device discovery
+- ARP cache monitoring for spoofing detection
+- Configuration management and export capabilities
 
-### Factory Pattern
-Used to create complex objects without exposing creation logic.
+### Lite Tier
+- Basic GUI dashboard
+- Single subnet monitoring and management
+- Basic alert system with email notifications
+- Port scanning and service identification
 
-Example: The threat intelligence module uses factories to create different types of threat indicators.
+### Pro Tier
+- Advanced dashboard with visualization
+- Multi-subnet monitoring
+- Machine learning integration for anomaly detection
+- Threat intelligence system
 
-### Command Pattern
-Used to encapsulate operations as objects.
-
-Example: Defense mechanisms implement commands that can be executed, undone, and tracked.
-
-### Strategy Pattern
-Used to select an algorithm at runtime.
-
-Example: Attack recognition uses different detection strategies based on attack type.
-
-## Threading Model
-
-ARPGuard uses a multi-threaded architecture to maintain UI responsiveness:
-
-1. **Main Thread**: UI rendering and event handling
-2. **Scanner Thread**: Network device discovery
-3. **Packet Capture Thread**: Network traffic capture
-4. **Analysis Thread**: Packet and threat analysis
-5. **Update Thread**: Threat intelligence updates
-6. **Defense Thread**: Executing defense mechanisms
-
-Threads communicate via thread-safe mechanisms like signals and queues.
-
-## Error Handling
-
-ARPGuard implements a robust error handling strategy:
-
-1. **Exception Handling**: All operations have appropriate try/except blocks
-2. **Logging**: Errors are logged with context information
-3. **User Feedback**: Critical errors are displayed to the user
-4. **Graceful Degradation**: Failure in one component doesn't crash the application
-5. **Self-Recovery**: Components attempt to recover from error states
+### Enterprise Tier
+- Controller platform for distributed deployment
+- Role-based access control
+- Integration framework for SIEM and other security tools
+- Advanced reporting and compliance features
 
 ## Security Considerations
 
-As a security tool, ARPGuard follows these security principles:
-
-1. **Least Privilege**: Operations run with minimum required permissions
-2. **Data Protection**: Sensitive data is handled securely
-3. **Input Validation**: All user and network inputs are validated
-4. **Secure Defaults**: Default configurations prioritize security
-5. **Defense in Depth**: Multiple security measures protect each component
-
-## Extensibility
-
-ARPGuard is designed to be extensible in several ways:
-
-1. **Plugin Architecture**: Core components can be extended with plugins
-2. **Custom Detection Rules**: Users can define custom attack patterns
-3. **API Integration**: External tools can integrate via the API
-4. **Custom Reporting**: Report formats and content are customizable
-5. **Theme Support**: UI appearance can be customized
+ARPGuard is designed with security in mind:
+- All components run with the minimum required privileges
+- User input is strictly validated to prevent injection attacks
+- Sensitive information is handled securely and not exposed in logs
+- Configuration files use proper permissions to prevent unauthorized access
 
 ## Performance Considerations
 
-ARPGuard optimizes performance through:
+ARPGuard is optimized for efficient resource usage:
+- Network scanning uses configurable timeouts and parallel processing
+- Packet processing is optimized for high throughput
+- Resource-intensive operations use threading for responsiveness
+- Configuration options allow tuning for different environments
 
-1. **Efficient Scanning**: Batch processing and prioritization
-2. **Packet Filtering**: Capturing only relevant packets
-3. **Caching**: Frequently used data is cached
-4. **Lazy Loading**: Components load only when needed
-5. **Resource Limits**: Configurable limits on resource usage
+## Extensibility
 
-## Future Architecture Directions
+The architecture is designed for extensibility:
+- Modular design allows new components to be added easily
+- Component interfaces are well-defined and documented
+- Common utilities reduce code duplication
+- Configuration-driven behavior enables adaptation without code changes
+
+## Future Enhancements
 
 Planned architectural improvements include:
-
-1. **Microservices**: Split functionality into separate services
-2. **Cloud Integration**: Enhanced cloud-based threat intelligence
-3. **Machine Learning**: Automated pattern recognition
-4. **Distributed Scanning**: Coordinated scanning across multiple devices
-5. **Real-time Visualization**: Enhanced network visualization
-6. **Blockchain Integration**: Immutable security event logging 
+- Plugin system for custom detection rules
+- Distributed architecture for enterprise deployments
+- Real-time analytics pipeline
+- Enhanced machine learning capabilities
+- API for third-party integration 

@@ -1,0 +1,80 @@
+[
+  {
+    "timestamp": "2024-04-06T14:00:00.000Z",
+    "type": "arp",
+    "op": 2,
+    "src_mac": "00:11:22:33:44:55",
+    "dst_mac": "ff:ff:ff:ff:ff:ff",
+    "src_ip": "192.168.1.100",
+    "dst_ip": "192.168.1.255",
+    "hw_type": 1,
+    "proto_type": 2048,
+    "hw_len": 6,
+    "proto_len": 4
+  },
+  {
+    "timestamp": "2024-04-06T14:00:01.000Z",
+    "type": "arp",
+    "op": 2,
+    "src_mac": "00:11:22:33:44:55",
+    "dst_mac": "ff:ff:ff:ff:ff:ff",
+    "src_ip": "192.168.1.1",
+    "dst_ip": "192.168.1.255",
+    "hw_type": 1,
+    "proto_type": 2048,
+    "hw_len": 6,
+    "proto_len": 4
+  },
+  {
+    "timestamp": "2024-04-06T14:00:02.000Z",
+    "type": "arp",
+    "op": 2,
+    "src_mac": "00:11:22:33:44:55",
+    "dst_mac": "00:aa:bb:cc:dd:ee",
+    "src_ip": "192.168.1.1",
+    "dst_ip": "192.168.1.100",
+    "hw_type": 1,
+    "proto_type": 2048,
+    "hw_len": 6,
+    "proto_len": 4
+  },
+  {
+    "timestamp": "2024-04-06T14:00:05.000Z",
+    "type": "arp",
+    "op": 2,
+    "src_mac": "00:11:22:33:44:55",
+    "dst_mac": "00:aa:bb:cc:dd:ee",
+    "src_ip": "192.168.1.100",
+    "dst_ip": "192.168.1.1",
+    "hw_type": 1,
+    "proto_type": 2048,
+    "hw_len": 6,
+    "proto_len": 4
+  },
+  {
+    "timestamp": "2024-04-06T14:00:10.000Z",
+    "type": "arp",
+    "op": 2,
+    "src_mac": "00:11:22:33:44:55",
+    "dst_mac": "ff:ff:ff:ff:ff:ff",
+    "src_ip": "192.168.1.1",
+    "dst_ip": "192.168.1.255",
+    "hw_type": 1,
+    "proto_type": 2048,
+    "hw_len": 6,
+    "proto_len": 4
+  },
+  {
+    "timestamp": "2024-04-06T14:00:15.000Z",
+    "type": "arp",
+    "op": 2,
+    "src_mac": "00:11:22:33:44:55",
+    "dst_mac": "ff:ff:ff:ff:ff:ff",
+    "src_ip": "192.168.1.100",
+    "dst_ip": "192.168.1.255",
+    "hw_type": 1,
+    "proto_type": 2048,
+    "hw_len": 6,
+    "proto_len": 4
+  }
+] 

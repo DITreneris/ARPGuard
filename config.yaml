@@ -1,0 +1,74 @@
+# ARPGuard Configuration File
+# Customized for investor demo
+
+general:
+  log_level: INFO
+  log_file: arpguard.log
+  color_output: true
+  progress_indicators: true
+
+scan:
+  default_interface: "eth0"
+  default_timeout: 3
+  default_ports:
+    - 22    # SSH
+    - 80    # HTTP
+    - 443   # HTTPS
+    - 3389  # RDP
+    - 5900  # VNC
+    - 8080  # Alternative HTTP
+  default_subnet: "192.168.1.0/24"
+  classify_devices: true
+  output_format: table
+
+monitor:
+  default_interface: "eth0"
+  alert_level: high
+  check_interval: 1
+  output_format: normal
+  known_devices_file: known_devices.json
+
+analyze:
+  pcap_dir: captures
+  max_packets: 20000
+  filter_expression: "tcp or udp or arp"
+  output_format: table
+
+export:
+  default_format: json
+  default_dir: investor_demo_exports
+  include_metadata: true
+
+threat_intelligence:
+  # API Keys for threat intelligence services
+  abuseipdb:
+    api_key: "YOUR_ABUSEIPDB_API_KEY"
+    enabled: true
+    update_interval: 3600  # 1 hour
+  
+  virustotal:
+    api_key: "YOUR_VIRUSTOTAL_API_KEY"
+    enabled: true
+    update_interval: 3600  # 1 hour
+  
+  otx:
+    api_key: "YOUR_OTX_API_KEY"
+    enabled: true
+    update_interval: 3600  # 1 hour
+  
+  emerging_threats:
+    api_key: "YOUR_EMERGING_THREATS_API_KEY"
+    enabled: true
+    update_interval: 3600  # 1 hour
+  
+  # Cache configuration
+  cache:
+    enabled: true
+    max_size: 10000
+    ttl: 86400  # 24 hours
+  
+  # Update settings
+  update_on_start: true
+  parallel_updates: true
+  max_retries: 3
+  retry_delay: 60  # 1 minute 

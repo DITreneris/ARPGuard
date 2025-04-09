@@ -1,5 +1,7 @@
 # ARPGuard - Network Security Tool
-**Version: 2.4**
+**Product Version:** 0.2 (Enhanced UI and Core Features)
+**Next Release:** 0.3 
+**README Version: 2.4**
 **Last Updated: April 6, 2025**
 
 ARPGuard is a network security tool designed to scan networks, detect ARP spoofing attacks, and improve local network security. It offers both GUI and CLI interfaces for different use cases.

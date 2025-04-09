@@ -6,8 +6,11 @@ import logging
 from datetime import datetime
 import pandas as pd
 import numpy as np
+from threading import Lock
 
 from app.components.ml_integration import MLIntegration
+from app.ml.rule_engine import RuleEngine
+from app.ml.context_tracker import ContextTracker
 from app.utils.logger import get_logger
 
 logger = get_logger('components.ml_controller')
@@ -18,6 +21,9 @@ class MLController:
     def __init__(self):
         """Initialize the ML controller."""
         self.ml_integration = MLIntegration()
+        self.rule_engine = RuleEngine()
+        self.context_tracker = ContextTracker()
+        
         self.running = False
         self.collection_thread = None
         self.training_thread = None
@@ -25,6 +31,20 @@ class MLController:
         # Performance data collection
         self.metrics_history = []
         self.predictions_history = []
+        
+        # Detection results storage
+        self.detection_results = []
+        self.detection_lock = Lock()
+        
+        # Stats tracking
+        self.stats = {
+            "packets_analyzed": 0,
+            "threats_detected": 0,
+            "rules_active": self.rule_engine.get_active_rules_count(),
+            "rule_hits": {},
+            "false_positives": 0,
+            "false_negatives": 0
+        }
         
         # Status tracking
         self.status = "Stopped"
@@ -82,11 +102,27 @@ class MLController:
                 
                 self.last_collection_time = datetime.now()
                 
+                # Update statistics from rule engine
+                self._update_rule_stats()
+                
             except Exception as e:
                 logger.error(f"Error collecting metrics: {e}")
             
             # Sleep for collection interval
             time.sleep(self.collection_interval)
+    
+    def _update_rule_stats(self):
+        """Update statistics from the rule engine."""
+        try:
+            # Get rule engine statistics
+            rule_stats = self.rule_engine.get_statistics()
+            
+            # Update our stats with rule engine stats
+            self.stats["rules_active"] = rule_stats["rules_active"]
+            self.stats["rule_hits"] = rule_stats["rule_hits"]
+            
+        except Exception as e:
+            logger.error(f"Error updating rule stats: {e}")
     
     def _training_loop(self):
         """Background thread for automatic model training."""
@@ -143,16 +179,38 @@ class MLController:
         Returns:
             Dictionary with detection results
         """
-        # Process the packet through ML integration
-        result = self.ml_integration.process_packet(packet)
+        # Update statistics
+        self.stats["packets_analyzed"] += 1
         
-        # Store prediction
+        # Update context tracker with packet information
+        self.context_tracker.update(packet)
+        
+        # Get current context for rule evaluation
+        context = self.context_tracker.get_context()
+        
+        # Evaluate packet against rules
+        rule_results = self.rule_engine.evaluate_packet(packet, context)
+        
+        # Store rule-based detection results
+        if rule_results:
+            with self.detection_lock:
+                self.detection_results.extend(rule_results)
+                self.stats["threats_detected"] += len(rule_results)
+                
+                # Keep only the most recent 1000 detections
+                if len(self.detection_results) > 1000:
+                    self.detection_results = self.detection_results[-1000:]
+        
+        # Also process the packet through ML integration
+        ml_result = self.ml_integration.process_packet(packet)
+        
+        # Store ML prediction
         prediction = {
             'timestamp': datetime.now(),
             'source': packet.get('src_ip', 'Unknown'),
-            'threat_probability': result.get('threat_probability', 0.0),
-            'action': result.get('recommended_action', 'allow'),
-            'is_anomaly': result.get('is_anomaly', False),
+            'threat_probability': ml_result.get('threat_probability', 0.0),
+            'action': ml_result.get('recommended_action', 'allow'),
+            'is_anomaly': ml_result.get('is_anomaly', False),
             'packet_info': packet
         }
         
@@ -163,7 +221,41 @@ class MLController:
         if len(self.predictions_history) > 1000:
             self.predictions_history = self.predictions_history[-1000:]
         
-        return result
+        # If ML detected a threat, add it to our detection results
+        if ml_result.get('is_threat', False):
+            with self.detection_lock:
+                ml_detection = {
+                    "type": "ml_based",
+                    "description": "ML-detected threat",
+                    "severity": "MEDIUM",
+                    "confidence": ml_result.get('threat_probability', 0.0),
+                    "timestamp": datetime.now(),
+                    "evidence": {
+                        "src_ip": packet.get('src_ip', 'Unknown'),
+                        "src_mac": packet.get('src_mac', 'Unknown'),
+                        "probability": ml_result.get('threat_probability', 0.0),
+                        "anomaly_score": ml_result.get('anomaly_score', 0.0)
+                    }
+                }
+                self.detection_results.append(ml_detection)
+                self.stats["threats_detected"] += 1
+                
+                # Keep only the most recent 1000 detections
+                if len(self.detection_results) > 1000:
+                    self.detection_results = self.detection_results[-1000:]
+        
+        # Combine results (prefer rule-based if both detected)
+        combined_result = ml_result.copy()
+        if rule_results:
+            combined_result['is_threat'] = True
+            combined_result['rule_detection'] = True
+            combined_result['threat_probability'] = max(
+                combined_result.get('threat_probability', 0.0),
+                max(r['confidence'] for r in rule_results)
+            )
+            combined_result['rule_detections'] = rule_results
+        
+        return combined_result
     
     def train_models(self, force=True) -> bool:
         """Train ML models with collected data.
@@ -216,6 +308,34 @@ class MLController:
             return self.predictions_history
         return self.predictions_history[-limit:]
     
+    def get_recent_detections(self, limit: Optional[int] = None) -> List[Dict[str, Any]]:
+        """Get recent detection results.
+        
+        Args:
+            limit: Optional limit on number of entries to return
+            
+        Returns:
+            List of detection dictionaries
+        """
+        with self.detection_lock:
+            if limit is None:
+                return list(self.detection_results)
+            return list(self.detection_results[-limit:])
+    
+    def get_statistics(self) -> Dict[str, Any]:
+        """Get current statistics from the ML controller.
+        
+        Returns:
+            Dictionary with statistics
+        """
+        # Make a copy of the stats to avoid thread issues
+        stats_copy = dict(self.stats)
+        
+        # Add any additional computed statistics
+        stats_copy["detection_count"] = len(self.detection_results)
+        
+        return stats_copy
+    
     def get_performance_metrics(self) -> Dict[str, float]:
         """Get current performance metrics for the ML models.
         
@@ -248,112 +368,158 @@ class MLController:
         logger.info(f"Training settings updated: automatic={automatic}, "
                   f"interval={self.training_interval}s, min_samples={self.ml_integration.min_training_samples}")
         
-        # Start or stop training thread based on automatic setting
-        if automatic and not self.training_thread and self.running:
-            self.training_thread = threading.Thread(target=self._training_loop, daemon=True)
-            self.training_thread.start()
-    
+    def save_rule_configuration(self, filepath: Optional[str] = None) -> bool:
+        """Save rule configuration to a file.
+        
+        Args:
+            filepath: Path to save rules to, defaults to configured path
+            
+        Returns:
+            True if rules were saved, False otherwise
+        """
+        if filepath is None:
+            filepath = os.path.join("data", "rules_config.yaml")
+            
+        return self.rule_engine.save_rules(filepath)
+        
+    def load_rule_configuration(self, filepath: Optional[str] = None) -> bool:
+        """Load rule configuration from a file.
+        
+        Args:
+            filepath: Path to load rules from, defaults to configured path
+            
+        Returns:
+            True if rules were loaded, False otherwise
+        """
+        if filepath is None:
+            filepath = os.path.join("data", "rules_config.yaml")
+            
+        return self.rule_engine.load_rules(filepath)
+        
     def predict_traffic(self, hours_ahead: int = 1) -> Optional[pd.DataFrame]:
-        """Predict network traffic for the specified hours ahead.
+        """Predict future traffic patterns.
         
         Args:
             hours_ahead: Number of hours to predict ahead
             
         Returns:
-            DataFrame with predicted traffic values or None if prediction fails
+            DataFrame with predictions or None if not enough data
         """
-        try:
-            # Check if ML API is initialized
-            if not self.ml_integration.models_initialized:
-                self.ml_integration.initialize_models()
-            
-            # Prepare data from metrics history
-            if len(self.metrics_history) < 20:  # Need enough history for sequence
-                logger.warning("Not enough metrics history for traffic prediction")
-                return None
-            
-            # Extract network traffic from metrics history
-            df = pd.DataFrame(self.metrics_history[-100:])  # Use last 100 entries
-            
-            # Prepare data for prediction
-            input_data = self.ml_integration.ml_api.prepare_data_for_traffic_prediction(df)
-            
-            # Predict traffic
-            predictions = self.ml_integration.ml_api.predict_traffic(
-                input_data, 
-                steps=hours_ahead * 6  # Assuming 10-minute intervals, 6 steps per hour
-            )
-            
-            return predictions
-            
-        except Exception as e:
-            logger.error(f"Error predicting traffic: {e}")
+        # This is a placeholder implementation
+        if len(self.metrics_history) < 24:
+            logger.warning("Not enough data for traffic prediction")
             return None
-    
-    def detect_anomalies(self, data: Optional[pd.DataFrame] = None) -> Tuple[List[bool], List[float], Dict[str, Any]]:
-        """Detect anomalies in the provided data or recent metrics.
+            
+        # Create a pandas DataFrame from the metrics history
+        metrics_df = pd.DataFrame(self.metrics_history)
         
-        Args:
-            data: Optional DataFrame with metrics data
+        # Set timestamp as index
+        metrics_df['timestamp'] = pd.to_datetime(metrics_df['timestamp'])
+        metrics_df.set_index('timestamp', inplace=True)
+        
+        # Resample to hourly data
+        hourly_df = metrics_df.resample('1H').mean()
+        
+        # Simple forecasting - just repeat the pattern
+        if len(hourly_df) >= 24:
+            # Use the last 24 hours as the forecast for the next period
+            last_day = hourly_df.tail(24).reset_index(drop=True)
             
-        Returns:
-            Tuple of (anomaly flags, anomaly scores, explanations)
-        """
-        try:
-            # Check if ML API is initialized
-            if not self.ml_integration.models_initialized:
-                self.ml_integration.initialize_models()
-            
-            # Use provided data or recent metrics
-            if data is None:
-                if len(self.metrics_history) < 10:
-                    logger.warning("Not enough metrics history for anomaly detection")
-                    return [], [], {}
+            # Create prediction DataFrame
+            prediction = pd.DataFrame()
+            for i in range(hours_ahead):
+                # Add forecast hours
+                forecast_hour = last_day.copy()
+                forecast_hour['hour'] = i + 1
+                prediction = pd.concat([prediction, forecast_hour])
                 
-                data = pd.DataFrame(self.metrics_history[-50:])  # Use last 50 entries
+            return prediction
             
-            # Convert to numpy array of features
-            features = data.drop(['timestamp'], axis=1, errors='ignore').values
-            
-            # Detect anomalies
-            is_anomaly, scores, explanations = self.ml_integration.ml_api.detect_anomalies(
-                features, explain=True
-            )
-            
-            return is_anomaly, scores, explanations
-            
-        except Exception as e:
-            logger.error(f"Error detecting anomalies: {e}")
-            return [], [], {}
-    
-    def optimize_resources(self, constraints: Dict[str, float]) -> Dict[str, float]:
-        """Optimize resource allocation based on current metrics.
+        return None
+        
+    def detect_anomalies(self, data: Optional[pd.DataFrame] = None) -> Tuple[List[bool], List[float], Dict[str, Any]]:
+        """Detect anomalies in the data.
         
         Args:
-            constraints: Dictionary of resource constraints
+            data: Optional DataFrame with data to check, uses internal data if None
             
         Returns:
-            Dictionary with optimized resource allocations
+            Tuple of (anomaly_flags, anomaly_scores, metadata)
         """
-        try:
-            # Check if ML API is initialized
-            if not self.ml_integration.models_initialized:
-                self.ml_integration.initialize_models()
-            
-            # Use recent metrics for optimization
+        # Use internal data if none provided
+        if data is None:
             if len(self.metrics_history) < 10:
-                logger.warning("Not enough metrics history for resource optimization")
-                return {}
+                return [], [], {"error": "Not enough data for anomaly detection"}
+                
+            # Create DataFrame from metrics history
+            data = pd.DataFrame(self.metrics_history)
+            data['timestamp'] = pd.to_datetime(data['timestamp'])
+            data.set_index('timestamp', inplace=True)
+        
+        # Extract numerical columns for anomaly detection
+        numeric_data = data.select_dtypes(include=[np.number])
+        
+        # Simple anomaly detection - flag values > 2 std deviations from mean
+        means = numeric_data.mean()
+        stds = numeric_data.std()
+        
+        anomaly_scores = []
+        anomaly_flags = []
+        
+        for _, row in numeric_data.iterrows():
+            # Calculate how many std deviations from mean for each field
+            deviations = abs(row - means) / stds
             
-            data = pd.DataFrame(self.metrics_history[-30:])  # Use last 30 entries
+            # Maximum deviation is the anomaly score
+            score = float(deviations.max())
             
-            # Optimize resources
-            optimized = self.ml_integration.ml_api.optimize_resources(
-                data, constraints
-            )
+            # Flag as anomaly if score > 2.0
+            flag = score > 2.0
             
-            return optimized
+            anomaly_scores.append(score)
+            anomaly_flags.append(flag)
+        
+        metadata = {
+            "mean": means.to_dict(),
+            "std": stds.to_dict(),
+            "threshold": 2.0,
+            "anomaly_count": sum(anomaly_flags)
+        }
+        
+        return anomaly_flags, anomaly_scores, metadata
+        
+    def optimize_resources(self, constraints: Dict[str, float]) -> Dict[str, float]:
+        """Optimize resource allocation based on current needs.
+        
+        Args:
+            constraints: Dictionary with resource constraints
             
-        except Exception as e:
-            logger.error(f"Error optimizing resources: {e}")
-            return {} 
+        Returns:
+            Dictionary with optimized resource allocation
+        """
+        # This is a placeholder implementation
+        # In a real system, this would use predictive models to optimize resources
+        
+        # Get recent metrics
+        recent_metrics = self.get_metrics_history(limit=100)
+        if not recent_metrics:
+            return constraints
+            
+        # Calculate average recent usage
+        avg_cpu = np.mean([m.get('cpu_usage', 0.0) for m in recent_metrics])
+        avg_memory = np.mean([m.get('memory_usage', 0.0) for m in recent_metrics])
+        
+        # Simple optimization - allocate resources proportionally to usage
+        total_resources = sum(constraints.values())
+        
+        # Default allocation - equal distribution
+        allocation = {k: total_resources / len(constraints) for k in constraints}
+        
+        # Adjust CPU and memory if we have those metrics
+        if 'cpu' in constraints and avg_cpu > 0:
+            allocation['cpu'] = max(constraints['cpu'] * avg_cpu * 1.5, constraints['cpu'] * 0.5)
+            
+        if 'memory' in constraints and avg_memory > 0:
+            allocation['memory'] = max(constraints['memory'] * avg_memory * 1.5, constraints['memory'] * 0.5)
+        
+        return allocation 

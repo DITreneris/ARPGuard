@@ -24,6 +24,57 @@ LOG_LEVELS = {
 # Root logger
 logger = logging.getLogger('arpguard')
 
+def setup_logger(name: str, log_file: Optional[str] = None, level: str = 'INFO') -> logging.Logger:
+    """Set up a logger with file and console handlers.
+    
+    Args:
+        name: The logger name.
+        log_file: The log file path. If None, uses the default.
+        level: The log level (DEBUG, INFO, WARNING, ERROR, CRITICAL).
+        
+    Returns:
+        logging.Logger: The configured logger.
+    """
+    # Create logger
+    logger = logging.getLogger(name)
+    
+    # Set log level
+    numeric_level = LOG_LEVELS.get(level.upper(), logging.INFO)
+    logger.setLevel(numeric_level)
+    
+    # Remove any existing handlers
+    for handler in logger.handlers[:]:
+        logger.removeHandler(handler)
+    
+    # Log format
+    formatter = logging.Formatter(
+        '%(asctime)s - %(name)s - %(levelname)s - %(message)s',
+        datefmt='%Y-%m-%d %H:%M:%S'
+    )
+    
+    # File handler
+    if log_file is None:
+        log_dir = LOG_DIR
+        os.makedirs(log_dir, exist_ok=True)
+        log_filename = LOG_FILENAME_FORMAT.format(datetime.now().strftime('%Y%m%d'))
+        log_file = os.path.join(log_dir, log_filename)
+    
+    # Set up rotating file handler (max 5MB, max 5 backup files)
+    file_handler = logging.handlers.RotatingFileHandler(
+        log_file, maxBytes=5*1024*1024, backupCount=5
+    )
+    file_handler.setFormatter(formatter)
+    logger.addHandler(file_handler)
+    
+    # Console handler
+    console_handler = logging.StreamHandler()
+    console_handler.setFormatter(formatter)
+    logger.addHandler(console_handler)
+    
+    logger.info(f"Logging initialized at level {level}")
+    
+    return logger
+
 def setup_logging(log_dir: Optional[str] = None, log_level: Optional[str] = None) -> None:
     """Set up logging for the application.
     

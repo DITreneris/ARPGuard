@@ -7,21 +7,21 @@
         {
           "version": 2,
           "hash": "5cbc7b5707b8e172a1fafad48393276b4bf74707dcda5285ba17531fd7ee1b62",
-          "timestamp": "2025-04-06T06:34:36.625397",
+          "timestamp": "2024-04-06T06:34:36.625397",
           "frontmatter": {}
         },
         {
           "version": 3,
           "hash": "a9c7db0f10d697dd625523900d6bba69339ad1f92fa8c812966b9e021ecc92bb",
-          "timestamp": "2025-04-06T06:36:12.530742",
+          "timestamp": "2024-04-06T06:36:12.530742",
           "frontmatter": {
             "version": 2,
-            "last_modified": "2025-04-06T06:34:36.625397",
+            "last_modified": "2024-04-06T06:34:36.625397",
             "git_history": [
               {
                 "hash": "9084c731e73afe38f3a7b9ad5028d553d3efa4eb",
                 "author": "DITreneris",
-                "date": "2025-04-06T06:16:52+03:00",
+                "date": "2024-04-06T06:16:52+03:00",
                 "message": "Initial commit: Project setup with ML components"
               }
             ]
@@ -30,30 +30,204 @@
         {
           "version": 4,
           "hash": "7865bf5ae27649386df34e65372c68f9c0bc9a2bc80c114f5691eb1e5f9ee881",
-          "timestamp": "2025-04-06T06:51:27.614932",
+          "timestamp": "2024-04-06T06:51:27.614932",
           "frontmatter": {
             "version": 3,
-            "last_modified": "2025-04-06T06:36:12.530742",
+            "last_modified": "2024-04-06T06:36:12.530742",
             "git_history": [
               {
                 "hash": "ef3989ccbe50479c66e030aaee698d8d2e12ac0d",
                 "author": "User",
-                "date": "2025-04-06T06:36:00+03:00",
+                "date": "2024-04-06T06:36:00+03:00",
                 "message": "Initial commit"
               },
               {
                 "hash": "9084c731e73afe38f3a7b9ad5028d553d3efa4eb",
                 "author": "DITreneris",
-                "date": "2025-04-06T06:16:52+03:00",
+                "date": "2024-04-06T06:16:52+03:00",
+                "message": "Initial commit: Project setup with ML components"
+              }
+            ]
+          }
+        },
+        {
+          "version": 5,
+          "hash": "145c2fd02042ec126b4fcc45cf5e85fd1981581757cf911d93e2a4c9fd947ea2",
+          "timestamp": "2024-04-06T07:08:44.230771",
+          "frontmatter": {
+            "version": 4,
+            "last_modified": "2024-04-06T06:51:27.614932",
+            "git_history": [
+              {
+                "hash": "ef3989ccbe50479c66e030aaee698d8d2e12ac0d",
+                "author": "User",
+                "date": "2024-04-06T06:36:00+03:00",
+                "message": "Initial commit"
+              },
+              {
+                "hash": "9084c731e73afe38f3a7b9ad5028d553d3efa4eb",
+                "author": "DITreneris",
+                "date": "2024-04-06T06:16:52+03:00",
+                "message": "Initial commit: Project setup with ML components"
+              }
+            ]
+          }
+        },
+        {
+          "version": 6,
+          "hash": "f72a24befe454fdbac28c5140687b82adf157f96727af760d9919e54c2ef3adc",
+          "timestamp": "2024-04-06T07:23:30.726015",
+          "frontmatter": {
+            "version": 5,
+            "last_modified": "2024-04-06T07:08:44.230771",
+            "git_history": [
+              {
+                "hash": "6a86e9ce0eddba890b90c8b1f9c8d192aaedae82",
+                "author": "User",
+                "date": "2024-04-06T07:06:49+03:00",
+                "message": "Initial commit: ARPGuard project with ML KPI monitoring system"
+              },
+              {
+                "hash": "ef3989ccbe50479c66e030aaee698d8d2e12ac0d",
+                "author": "User",
+                "date": "2024-04-06T06:36:00+03:00",
+                "message": "Initial commit"
+              },
+              {
+                "hash": "9084c731e73afe38f3a7b9ad5028d553d3efa4eb",
+                "author": "DITreneris",
+                "date": "2024-04-06T06:16:52+03:00",
+                "message": "Initial commit: Project setup with ML components"
+              }
+            ]
+          }
+        },
+        {
+          "version": 7,
+          "hash": "c415bb4c067bd9c9e9de8e151a60d720bdcaca8670735d62553f793fa22640c8",
+          "timestamp": "2024-04-06T07:25:30.116593",
+          "frontmatter": {
+            "version": 6,
+            "last_modified": "2024-04-06T07:23:30.726015",
+            "git_history": [
+              {
+                "hash": "6a86e9ce0eddba890b90c8b1f9c8d192aaedae82",
+                "author": "User",
+                "date": "2024-04-06T07:06:49+03:00",
+                "message": "Initial commit: ARPGuard project with ML KPI monitoring system"
+              },
+              {
+                "hash": "ef3989ccbe50479c66e030aaee698d8d2e12ac0d",
+                "author": "User",
+                "date": "2024-04-06T06:36:00+03:00",
+                "message": "Initial commit"
+              },
+              {
+                "hash": "9084c731e73afe38f3a7b9ad5028d553d3efa4eb",
+                "author": "DITreneris",
+                "date": "2024-04-06T06:16:52+03:00",
+                "message": "Initial commit: Project setup with ML components"
+              }
+            ]
+          }
+        },
+        {
+          "version": 8,
+          "hash": "7fa34c4a1b202fa774aa91494e1e952afaf6a8c79e322d94b2ce94e2bbf0673d",
+          "timestamp": "2024-04-06T07:26:43.028966",
+          "frontmatter": {
+            "version": 7,
+            "last_modified": "2024-04-06T07:25:30.116593",
+            "git_history": [
+              {
+                "hash": "6a86e9ce0eddba890b90c8b1f9c8d192aaedae82",
+                "author": "User",
+                "date": "2024-04-06T07:06:49+03:00",
+                "message": "Initial commit: ARPGuard project with ML KPI monitoring system"
+              },
+              {
+                "hash": "ef3989ccbe50479c66e030aaee698d8d2e12ac0d",
+                "author": "User",
+                "date": "2024-04-06T06:36:00+03:00",
+                "message": "Initial commit"
+              },
+              {
+                "hash": "9084c731e73afe38f3a7b9ad5028d553d3efa4eb",
+                "author": "DITreneris",
+                "date": "2024-04-06T06:16:52+03:00",
+                "message": "Initial commit: Project setup with ML components"
+              }
+            ]
+          }
+        },
+        {
+          "version": 9,
+          "hash": "095b5d1a991e2d37c93ac9796ba3637af818048467832816a4cc149283eeb840",
+          "timestamp": "2024-04-06T07:27:12.873847",
+          "frontmatter": {
+            "version": 8,
+            "last_modified": "2024-04-06T07:26:43.028966",
+            "git_history": [
+              {
+                "hash": "6a86e9ce0eddba890b90c8b1f9c8d192aaedae82",
+                "author": "User",
+                "date": "2024-04-06T07:06:49+03:00",
+                "message": "Initial commit: ARPGuard project with ML KPI monitoring system"
+              },
+              {
+                "hash": "ef3989ccbe50479c66e030aaee698d8d2e12ac0d",
+                "author": "User",
+                "date": "2024-04-06T06:36:00+03:00",
+                "message": "Initial commit"
+              },
+              {
+                "hash": "9084c731e73afe38f3a7b9ad5028d553d3efa4eb",
+                "author": "DITreneris",
+                "date": "2024-04-06T06:16:52+03:00",
+                "message": "Initial commit: Project setup with ML components"
+              }
+            ]
+          }
+        },
+        {
+          "version": 10,
+          "hash": "18b1f7ba5acfcb8f16113eb134b055a832084adb89be5950cd909c8a86b774b9",
+          "timestamp": "2025-04-06T07:28:37.395322",
+          "frontmatter": {
+            "version": 9,
+            "last_modified": "2024-04-06T07:27:12.873847",
+            "git_history": [
+              {
+                "hash": "6a86e9ce0eddba890b90c8b1f9c8d192aaedae82",
+                "author": "User",
+                "date": "2024-04-06T07:06:49+03:00",
+                "message": "Initial commit: ARPGuard project with ML KPI monitoring system"
+              },
+              {
+                "hash": "ef3989ccbe50479c66e030aaee698d8d2e12ac0d",
+                "author": "User",
+                "date": "2024-04-06T06:36:00+03:00",
+                "message": "Initial commit"
+              },
+              {
+                "hash": "9084c731e73afe38f3a7b9ad5028d553d3efa4eb",
+                "author": "DITreneris",
+                "date": "2024-04-06T06:16:52+03:00",
                 "message": "Initial commit: Project setup with ML components"
               }
             ]
           }
         }
       ],
-      "current_version": 4,
-      "last_modified": "2025-04-06T06:51:27.614932",
+      "current_version": 10,
+      "last_modified": "2025-04-06T07:28:37.395322",
       "git_history": [
+        {
+          "hash": "6a86e9ce0eddba890b90c8b1f9c8d192aaedae82",
+          "author": "User",
+          "date": "2025-04-06T07:06:49+03:00",
+          "message": "Initial commit: ARPGuard project with ML KPI monitoring system"
+        },
         {
           "hash": "ef3989ccbe50479c66e030aaee698d8d2e12ac0d",
           "author": "User",
@@ -74,21 +248,21 @@
         {
           "version": 2,
           "hash": "53f6d51067ed5ea1517b029bfb20c622263a69dd99bde54fca48b796213a5f7b",
-          "timestamp": "2025-04-06T06:34:36.710362",
+          "timestamp": "2024-04-06T06:34:36.710362",
           "frontmatter": {}
         },
         {
           "version": 3,
           "hash": "9ae60afb084fa3434bb4461e7dd7919f357ae0b0f661d347e3e54ed2e7588cc7",
-          "timestamp": "2025-04-06T06:36:12.637459",
+          "timestamp": "2024-04-06T06:36:12.637459",
           "frontmatter": {
             "version": 2,
-            "last_modified": "2025-04-06T06:34:36.710362",
+            "last_modified": "2024-04-06T06:34:36.710362",
             "git_history": [
               {
                 "hash": "9084c731e73afe38f3a7b9ad5028d553d3efa4eb",
                 "author": "DITreneris",
-                "date": "2025-04-06T06:16:52+03:00",
+                "date": "2024-04-06T06:16:52+03:00",
                 "message": "Initial commit: Project setup with ML components"
               }
             ]
@@ -97,30 +271,204 @@
         {
           "version": 4,
           "hash": "a25f9b4ab4a06cf3cafaeaf31a3433ef74b65c81f6e6878d3f9d3993151d238e",
-          "timestamp": "2025-04-06T06:51:27.707320",
+          "timestamp": "2024-04-06T06:51:27.707320",
           "frontmatter": {
             "version": 3,
-            "last_modified": "2025-04-06T06:36:12.637459",
+            "last_modified": "2024-04-06T06:36:12.637459",
             "git_history": [
               {
                 "hash": "ef3989ccbe50479c66e030aaee698d8d2e12ac0d",
                 "author": "User",
-                "date": "2025-04-06T06:36:00+03:00",
+                "date": "2024-04-06T06:36:00+03:00",
                 "message": "Initial commit"
               },
               {
                 "hash": "9084c731e73afe38f3a7b9ad5028d553d3efa4eb",
                 "author": "DITreneris",
-                "date": "2025-04-06T06:16:52+03:00",
+                "date": "2024-04-06T06:16:52+03:00",
+                "message": "Initial commit: Project setup with ML components"
+              }
+            ]
+          }
+        },
+        {
+          "version": 5,
+          "hash": "c453922ffd1dd1a35f1f536735632e4460b785641ba5376c90d16e21b1bdc1e2",
+          "timestamp": "2024-04-06T07:08:44.327509",
+          "frontmatter": {
+            "version": 4,
+            "last_modified": "2024-04-06T06:51:27.707320",
+            "git_history": [
+              {
+                "hash": "ef3989ccbe50479c66e030aaee698d8d2e12ac0d",
+                "author": "User",
+                "date": "2024-04-06T06:36:00+03:00",
+                "message": "Initial commit"
+              },
+              {
+                "hash": "9084c731e73afe38f3a7b9ad5028d553d3efa4eb",
+                "author": "DITreneris",
+                "date": "2024-04-06T06:16:52+03:00",
+                "message": "Initial commit: Project setup with ML components"
+              }
+            ]
+          }
+        },
+        {
+          "version": 6,
+          "hash": "66669a40a96841a967637d73a4823c89ed03db72ecdcd1e960ddee17860ad82c",
+          "timestamp": "2024-04-06T07:23:30.835536",
+          "frontmatter": {
+            "version": 5,
+            "last_modified": "2024-04-06T07:08:44.327509",
+            "git_history": [
+              {
+                "hash": "6a86e9ce0eddba890b90c8b1f9c8d192aaedae82",
+                "author": "User",
+                "date": "2024-04-06T07:06:49+03:00",
+                "message": "Initial commit: ARPGuard project with ML KPI monitoring system"
+              },
+              {
+                "hash": "ef3989ccbe50479c66e030aaee698d8d2e12ac0d",
+                "author": "User",
+                "date": "2024-04-06T06:36:00+03:00",
+                "message": "Initial commit"
+              },
+              {
+                "hash": "9084c731e73afe38f3a7b9ad5028d553d3efa4eb",
+                "author": "DITreneris",
+                "date": "2024-04-06T06:16:52+03:00",
+                "message": "Initial commit: Project setup with ML components"
+              }
+            ]
+          }
+        },
+        {
+          "version": 7,
+          "hash": "d476f46afe45e01ceb00027070fa31627baa0f0bd2948c1313ef714b5a77be28",
+          "timestamp": "2024-04-06T07:25:30.227298",
+          "frontmatter": {
+            "version": 6,
+            "last_modified": "2024-04-06T07:23:30.835536",
+            "git_history": [
+              {
+                "hash": "6a86e9ce0eddba890b90c8b1f9c8d192aaedae82",
+                "author": "User",
+                "date": "2024-04-06T07:06:49+03:00",
+                "message": "Initial commit: ARPGuard project with ML KPI monitoring system"
+              },
+              {
+                "hash": "ef3989ccbe50479c66e030aaee698d8d2e12ac0d",
+                "author": "User",
+                "date": "2024-04-06T06:36:00+03:00",
+                "message": "Initial commit"
+              },
+              {
+                "hash": "9084c731e73afe38f3a7b9ad5028d553d3efa4eb",
+                "author": "DITreneris",
+                "date": "2024-04-06T06:16:52+03:00",
+                "message": "Initial commit: Project setup with ML components"
+              }
+            ]
+          }
+        },
+        {
+          "version": 8,
+          "hash": "07c64f705c2a0046380c9ce881dc99b339c4dc5c547fcd2e00b02f8eb6198587",
+          "timestamp": "2024-04-06T07:26:43.130814",
+          "frontmatter": {
+            "version": 7,
+            "last_modified": "2024-04-06T07:25:30.227298",
+            "git_history": [
+              {
+                "hash": "6a86e9ce0eddba890b90c8b1f9c8d192aaedae82",
+                "author": "User",
+                "date": "2024-04-06T07:06:49+03:00",
+                "message": "Initial commit: ARPGuard project with ML KPI monitoring system"
+              },
+              {
+                "hash": "ef3989ccbe50479c66e030aaee698d8d2e12ac0d",
+                "author": "User",
+                "date": "2024-04-06T06:36:00+03:00",
+                "message": "Initial commit"
+              },
+              {
+                "hash": "9084c731e73afe38f3a7b9ad5028d553d3efa4eb",
+                "author": "DITreneris",
+                "date": "2024-04-06T06:16:52+03:00",
+                "message": "Initial commit: Project setup with ML components"
+              }
+            ]
+          }
+        },
+        {
+          "version": 9,
+          "hash": "c4946f7d93143cc045517e11a189d22b8787029d514f4828eca915932fb537bd",
+          "timestamp": "2024-04-06T07:27:12.986869",
+          "frontmatter": {
+            "version": 8,
+            "last_modified": "2024-04-06T07:26:43.130814",
+            "git_history": [
+              {
+                "hash": "6a86e9ce0eddba890b90c8b1f9c8d192aaedae82",
+                "author": "User",
+                "date": "2024-04-06T07:06:49+03:00",
+                "message": "Initial commit: ARPGuard project with ML KPI monitoring system"
+              },
+              {
+                "hash": "ef3989ccbe50479c66e030aaee698d8d2e12ac0d",
+                "author": "User",
+                "date": "2024-04-06T06:36:00+03:00",
+                "message": "Initial commit"
+              },
+              {
+                "hash": "9084c731e73afe38f3a7b9ad5028d553d3efa4eb",
+                "author": "DITreneris",
+                "date": "2024-04-06T06:16:52+03:00",
+                "message": "Initial commit: Project setup with ML components"
+              }
+            ]
+          }
+        },
+        {
+          "version": 10,
+          "hash": "e948f89e49ee6428b88625a33c40a33542e917da339be04d666e7cbc21968113",
+          "timestamp": "2025-04-06T07:28:37.504882",
+          "frontmatter": {
+            "version": 9,
+            "last_modified": "2024-04-06T07:27:12.986869",
+            "git_history": [
+              {
+                "hash": "6a86e9ce0eddba890b90c8b1f9c8d192aaedae82",
+                "author": "User",
+                "date": "2024-04-06T07:06:49+03:00",
+                "message": "Initial commit: ARPGuard project with ML KPI monitoring system"
+              },
+              {
+                "hash": "ef3989ccbe50479c66e030aaee698d8d2e12ac0d",
+                "author": "User",
+                "date": "2024-04-06T06:36:00+03:00",
+                "message": "Initial commit"
+              },
+              {
+                "hash": "9084c731e73afe38f3a7b9ad5028d553d3efa4eb",
+                "author": "DITreneris",
+                "date": "2024-04-06T06:16:52+03:00",
                 "message": "Initial commit: Project setup with ML components"
               }
             ]
           }
         }
       ],
-      "current_version": 4,
-      "last_modified": "2025-04-06T06:51:27.707320",
+      "current_version": 10,
+      "last_modified": "2025-04-06T07:28:37.504882",
       "git_history": [
+        {
+          "hash": "6a86e9ce0eddba890b90c8b1f9c8d192aaedae82",
+          "author": "User",
+          "date": "2025-04-06T07:06:49+03:00",
+          "message": "Initial commit: ARPGuard project with ML KPI monitoring system"
+        },
         {
           "hash": "ef3989ccbe50479c66e030aaee698d8d2e12ac0d",
           "author": "User",
@@ -141,40 +489,178 @@
         {
           "version": 2,
           "hash": "33c3fb4df1c4b2c9d6d4e38870dae75fa253299ffce2145a7dba65da4f93973f",
-          "timestamp": "2025-04-06T06:34:36.791890",
+          "timestamp": "2024-04-06T06:34:36.791890",
           "frontmatter": {}
         },
         {
           "version": 3,
           "hash": "478cf636d6287259dea1d00d482b4502f910b5573da8d2c6a79a79493558ea85",
-          "timestamp": "2025-04-06T06:36:12.727217",
+          "timestamp": "2024-04-06T06:36:12.727217",
           "frontmatter": {
             "version": 2,
-            "last_modified": "2025-04-06T06:34:36.791890",
+            "last_modified": "2024-04-06T06:34:36.791890",
             "git_history": []
           }
         },
         {
           "version": 4,
           "hash": "7ba3f6c47519eb8880aeecbe57635fe93081e7161ddc86deb3cced9f66ab3ccb",
-          "timestamp": "2025-04-06T06:51:27.800390",
+          "timestamp": "2024-04-06T06:51:27.800390",
           "frontmatter": {
             "version": 3,
-            "last_modified": "2025-04-06T06:36:12.727217",
+            "last_modified": "2024-04-06T06:36:12.727217",
             "git_history": [
               {
                 "hash": "ef3989ccbe50479c66e030aaee698d8d2e12ac0d",
                 "author": "User",
-                "date": "2025-04-06T06:36:00+03:00",
+                "date": "2024-04-06T06:36:00+03:00",
+                "message": "Initial commit"
+              }
+            ]
+          }
+        },
+        {
+          "version": 5,
+          "hash": "2d29e8fb9e2c1c7740b890eb67d470c3eae702d562782be0014fd91d06a85daf",
+          "timestamp": "2024-04-06T07:08:44.424680",
+          "frontmatter": {
+            "version": 4,
+            "last_modified": "2024-04-06T06:51:27.800390",
+            "git_history": [
+              {
+                "hash": "ef3989ccbe50479c66e030aaee698d8d2e12ac0d",
+                "author": "User",
+                "date": "2024-04-06T06:36:00+03:00",
+                "message": "Initial commit"
+              }
+            ]
+          }
+        },
+        {
+          "version": 6,
+          "hash": "f8bb12962c805b8528574f39a088aefeaf427e4baaf51fec9e292d6dd27f8a0f",
+          "timestamp": "2024-04-06T07:23:30.928673",
+          "frontmatter": {
+            "version": 5,
+            "last_modified": "2024-04-06T07:08:44.424680",
+            "git_history": [
+              {
+                "hash": "6a86e9ce0eddba890b90c8b1f9c8d192aaedae82",
+                "author": "User",
+                "date": "2024-04-06T07:06:49+03:00",
+                "message": "Initial commit: ARPGuard project with ML KPI monitoring system"
+              },
+              {
+                "hash": "ef3989ccbe50479c66e030aaee698d8d2e12ac0d",
+                "author": "User",
+                "date": "2024-04-06T06:36:00+03:00",
+                "message": "Initial commit"
+              }
+            ]
+          }
+        },
+        {
+          "version": 7,
+          "hash": "29df6600034044507e4b3ff88129fd5ceb7185738796d4db0205b89b17a7a99e",
+          "timestamp": "2024-04-06T07:25:30.339061",
+          "frontmatter": {
+            "version": 6,
+            "last_modified": "2024-04-06T07:23:30.928673",
+            "git_history": [
+              {
+                "hash": "6a86e9ce0eddba890b90c8b1f9c8d192aaedae82",
+                "author": "User",
+                "date": "2024-04-06T07:06:49+03:00",
+                "message": "Initial commit: ARPGuard project with ML KPI monitoring system"
+              },
+              {
+                "hash": "ef3989ccbe50479c66e030aaee698d8d2e12ac0d",
+                "author": "User",
+                "date": "2024-04-06T06:36:00+03:00",
+                "message": "Initial commit"
+              }
+            ]
+          }
+        },
+        {
+          "version": 8,
+          "hash": "d42e60087660a9ddc5a1547fb26043674018ee88d218550220fd6aef3072bd58",
+          "timestamp": "2024-04-06T07:26:43.243129",
+          "frontmatter": {
+            "version": 7,
+            "last_modified": "2024-04-06T07:25:30.339061",
+            "git_history": [
+              {
+                "hash": "6a86e9ce0eddba890b90c8b1f9c8d192aaedae82",
+                "author": "User",
+                "date": "2024-04-06T07:06:49+03:00",
+                "message": "Initial commit: ARPGuard project with ML KPI monitoring system"
+              },
+              {
+                "hash": "ef3989ccbe50479c66e030aaee698d8d2e12ac0d",
+                "author": "User",
+                "date": "2024-04-06T06:36:00+03:00",
+                "message": "Initial commit"
+              }
+            ]
+          }
+        },
+        {
+          "version": 9,
+          "hash": "8e2160bc1b0aa6dd8e28a43f21f1c873e7fabc334e1feb0464e7f9bf6ff3fcd8",
+          "timestamp": "2024-04-06T07:27:13.094362",
+          "frontmatter": {
+            "version": 8,
+            "last_modified": "2024-04-06T07:26:43.243129",
+            "git_history": [
+              {
+                "hash": "6a86e9ce0eddba890b90c8b1f9c8d192aaedae82",
+                "author": "User",
+                "date": "2024-04-06T07:06:49+03:00",
+                "message": "Initial commit: ARPGuard project with ML KPI monitoring system"
+              },
+              {
+                "hash": "ef3989ccbe50479c66e030aaee698d8d2e12ac0d",
+                "author": "User",
+                "date": "2024-04-06T06:36:00+03:00",
+                "message": "Initial commit"
+              }
+            ]
+          }
+        },
+        {
+          "version": 10,
+          "hash": "97598fae3fa5c629ccab451db0c2877b9a9e76b66b12c214bf094785614f922c",
+          "timestamp": "2025-04-06T07:28:37.620222",
+          "frontmatter": {
+            "version": 9,
+            "last_modified": "2024-04-06T07:27:13.094362",
+            "git_history": [
+              {
+                "hash": "6a86e9ce0eddba890b90c8b1f9c8d192aaedae82",
+                "author": "User",
+                "date": "2024-04-06T07:06:49+03:00",
+                "message": "Initial commit: ARPGuard project with ML KPI monitoring system"
+              },
+              {
+                "hash": "ef3989ccbe50479c66e030aaee698d8d2e12ac0d",
+                "author": "User",
+                "date": "2024-04-06T06:36:00+03:00",
                 "message": "Initial commit"
               }
             ]
           }
         }
       ],
-      "current_version": 4,
-      "last_modified": "2025-04-06T06:51:27.800390",
+      "current_version": 10,
+      "last_modified": "2025-04-06T07:28:37.620222",
       "git_history": [
+        {
+          "hash": "6a86e9ce0eddba890b90c8b1f9c8d192aaedae82",
+          "author": "User",
+          "date": "2025-04-06T07:06:49+03:00",
+          "message": "Initial commit: ARPGuard project with ML KPI monitoring system"
+        },
         {
           "hash": "ef3989ccbe50479c66e030aaee698d8d2e12ac0d",
           "author": "User",
@@ -189,21 +675,21 @@
         {
           "version": 2,
           "hash": "2c2e045afd5937b6720b5c02c2eb6d6eae7f745bff2a2039968edf650777860a",
-          "timestamp": "2025-04-06T06:34:36.867774",
+          "timestamp": "2024-04-06T06:34:36.867774",
           "frontmatter": {}
         },
         {
           "version": 3,
           "hash": "5fb72bb59fc3f58611a5b047322c2e900defc5ec33d997ce027660efab6fe06e",
-          "timestamp": "2025-04-06T06:36:12.812990",
+          "timestamp": "2024-04-06T06:36:12.812990",
           "frontmatter": {
             "version": 2,
-            "last_modified": "2025-04-06T06:34:36.867774",
+            "last_modified": "2024-04-06T06:34:36.867774",
             "git_history": [
               {
                 "hash": "9084c731e73afe38f3a7b9ad5028d553d3efa4eb",
                 "author": "DITreneris",
-                "date": "2025-04-06T06:16:52+03:00",
+                "date": "2024-04-06T06:16:52+03:00",
                 "message": "Initial commit: Project setup with ML components"
               }
             ]
@@ -212,30 +698,204 @@
         {
           "version": 4,
           "hash": "84d9f97bd7336880232038099e3a579e4aa53f7eb7d4f240905f028f710441ad",
-          "timestamp": "2025-04-06T06:51:27.888802",
+          "timestamp": "2024-04-06T06:51:27.888802",
           "frontmatter": {
             "version": 3,
-            "last_modified": "2025-04-06T06:36:12.812990",
+            "last_modified": "2024-04-06T06:36:12.812990",
             "git_history": [
               {
                 "hash": "ef3989ccbe50479c66e030aaee698d8d2e12ac0d",
                 "author": "User",
-                "date": "2025-04-06T06:36:00+03:00",
+                "date": "2024-04-06T06:36:00+03:00",
                 "message": "Initial commit"
               },
               {
                 "hash": "9084c731e73afe38f3a7b9ad5028d553d3efa4eb",
                 "author": "DITreneris",
-                "date": "2025-04-06T06:16:52+03:00",
+                "date": "2024-04-06T06:16:52+03:00",
+                "message": "Initial commit: Project setup with ML components"
+              }
+            ]
+          }
+        },
+        {
+          "version": 5,
+          "hash": "1c3d18caf5f8153e6a4ed61c0daf0bd115fbc316e57cc07be9126dca12dda4d3",
+          "timestamp": "2024-04-06T07:08:44.515976",
+          "frontmatter": {
+            "version": 4,
+            "last_modified": "2024-04-06T06:51:27.888802",
+            "git_history": [
+              {
+                "hash": "ef3989ccbe50479c66e030aaee698d8d2e12ac0d",
+                "author": "User",
+                "date": "2024-04-06T06:36:00+03:00",
+                "message": "Initial commit"
+              },
+              {
+                "hash": "9084c731e73afe38f3a7b9ad5028d553d3efa4eb",
+                "author": "DITreneris",
+                "date": "2024-04-06T06:16:52+03:00",
+                "message": "Initial commit: Project setup with ML components"
+              }
+            ]
+          }
+        },
+        {
+          "version": 6,
+          "hash": "3fccc2d041c1115bdf70c28d225609daca699f018de0ee056ad220502af6cccc",
+          "timestamp": "2024-04-06T07:23:31.040377",
+          "frontmatter": {
+            "version": 5,
+            "last_modified": "2024-04-06T07:08:44.515976",
+            "git_history": [
+              {
+                "hash": "6a86e9ce0eddba890b90c8b1f9c8d192aaedae82",
+                "author": "User",
+                "date": "2024-04-06T07:06:49+03:00",
+                "message": "Initial commit: ARPGuard project with ML KPI monitoring system"
+              },
+              {
+                "hash": "ef3989ccbe50479c66e030aaee698d8d2e12ac0d",
+                "author": "User",
+                "date": "2024-04-06T06:36:00+03:00",
+                "message": "Initial commit"
+              },
+              {
+                "hash": "9084c731e73afe38f3a7b9ad5028d553d3efa4eb",
+                "author": "DITreneris",
+                "date": "2024-04-06T06:16:52+03:00",
+                "message": "Initial commit: Project setup with ML components"
+              }
+            ]
+          }
+        },
+        {
+          "version": 7,
+          "hash": "04f9077f1b566fc476c06540fdde63b26abb564795aa16080693161bddd36cbb",
+          "timestamp": "2024-04-06T07:25:30.467396",
+          "frontmatter": {
+            "version": 6,
+            "last_modified": "2024-04-06T07:23:31.040377",
+            "git_history": [
+              {
+                "hash": "6a86e9ce0eddba890b90c8b1f9c8d192aaedae82",
+                "author": "User",
+                "date": "2024-04-06T07:06:49+03:00",
+                "message": "Initial commit: ARPGuard project with ML KPI monitoring system"
+              },
+              {
+                "hash": "ef3989ccbe50479c66e030aaee698d8d2e12ac0d",
+                "author": "User",
+                "date": "2024-04-06T06:36:00+03:00",
+                "message": "Initial commit"
+              },
+              {
+                "hash": "9084c731e73afe38f3a7b9ad5028d553d3efa4eb",
+                "author": "DITreneris",
+                "date": "2024-04-06T06:16:52+03:00",
+                "message": "Initial commit: Project setup with ML components"
+              }
+            ]
+          }
+        },
+        {
+          "version": 8,
+          "hash": "468c478602250c4662ca7d932b50dc642bec5ee90808e3830953809b567456f7",
+          "timestamp": "2024-04-06T07:26:43.349420",
+          "frontmatter": {
+            "version": 7,
+            "last_modified": "2024-04-06T07:25:30.467396",
+            "git_history": [
+              {
+                "hash": "6a86e9ce0eddba890b90c8b1f9c8d192aaedae82",
+                "author": "User",
+                "date": "2024-04-06T07:06:49+03:00",
+                "message": "Initial commit: ARPGuard project with ML KPI monitoring system"
+              },
+              {
+                "hash": "ef3989ccbe50479c66e030aaee698d8d2e12ac0d",
+                "author": "User",
+                "date": "2024-04-06T06:36:00+03:00",
+                "message": "Initial commit"
+              },
+              {
+                "hash": "9084c731e73afe38f3a7b9ad5028d553d3efa4eb",
+                "author": "DITreneris",
+                "date": "2024-04-06T06:16:52+03:00",
+                "message": "Initial commit: Project setup with ML components"
+              }
+            ]
+          }
+        },
+        {
+          "version": 9,
+          "hash": "fb675a5822bd82dd60b3a1a39ab6bb95ce32d14546f846ed674a33d4ecc9f713",
+          "timestamp": "2024-04-06T07:27:13.203742",
+          "frontmatter": {
+            "version": 8,
+            "last_modified": "2024-04-06T07:26:43.349420",
+            "git_history": [
+              {
+                "hash": "6a86e9ce0eddba890b90c8b1f9c8d192aaedae82",
+                "author": "User",
+                "date": "2024-04-06T07:06:49+03:00",
+                "message": "Initial commit: ARPGuard project with ML KPI monitoring system"
+              },
+              {
+                "hash": "ef3989ccbe50479c66e030aaee698d8d2e12ac0d",
+                "author": "User",
+                "date": "2024-04-06T06:36:00+03:00",
+                "message": "Initial commit"
+              },
+              {
+                "hash": "9084c731e73afe38f3a7b9ad5028d553d3efa4eb",
+                "author": "DITreneris",
+                "date": "2024-04-06T06:16:52+03:00",
+                "message": "Initial commit: Project setup with ML components"
+              }
+            ]
+          }
+        },
+        {
+          "version": 10,
+          "hash": "454999f11d0bd9b847b98b34679fe5b1e00b6ecdf886e5260917cbc84c8a7559",
+          "timestamp": "2025-04-06T07:28:37.726618",
+          "frontmatter": {
+            "version": 9,
+            "last_modified": "2024-04-06T07:27:13.203742",
+            "git_history": [
+              {
+                "hash": "6a86e9ce0eddba890b90c8b1f9c8d192aaedae82",
+                "author": "User",
+                "date": "2024-04-06T07:06:49+03:00",
+                "message": "Initial commit: ARPGuard project with ML KPI monitoring system"
+              },
+              {
+                "hash": "ef3989ccbe50479c66e030aaee698d8d2e12ac0d",
+                "author": "User",
+                "date": "2024-04-06T06:36:00+03:00",
+                "message": "Initial commit"
+              },
+              {
+                "hash": "9084c731e73afe38f3a7b9ad5028d553d3efa4eb",
+                "author": "DITreneris",
+                "date": "2024-04-06T06:16:52+03:00",
                 "message": "Initial commit: Project setup with ML components"
               }
             ]
           }
         }
       ],
-      "current_version": 4,
-      "last_modified": "2025-04-06T06:51:27.888802",
+      "current_version": 10,
+      "last_modified": "2025-04-06T07:28:37.726618",
       "git_history": [
+        {
+          "hash": "6a86e9ce0eddba890b90c8b1f9c8d192aaedae82",
+          "author": "User",
+          "date": "2025-04-06T07:06:49+03:00",
+          "message": "Initial commit: ARPGuard project with ML KPI monitoring system"
+        },
         {
           "hash": "ef3989ccbe50479c66e030aaee698d8d2e12ac0d",
           "author": "User",
@@ -256,21 +916,21 @@
         {
           "version": 2,
           "hash": "c3158d9ca6f464296c9dad87be72812d6a4714c5bd5a4025c2bd98c50d693d63",
-          "timestamp": "2025-04-06T06:34:36.945730",
+          "timestamp": "2024-04-06T06:34:36.945730",
           "frontmatter": {}
         },
         {
           "version": 3,
           "hash": "6387e32981532fa90f31cbc5aa15754c030439626342b6efb94f1d82ff98836a",
-          "timestamp": "2025-04-06T06:36:12.896391",
+          "timestamp": "2024-04-06T06:36:12.896391",
           "frontmatter": {
             "version": 2,
-            "last_modified": "2025-04-06T06:34:36.945730",
+            "last_modified": "2024-04-06T06:34:36.945730",
             "git_history": [
               {
                 "hash": "9084c731e73afe38f3a7b9ad5028d553d3efa4eb",
                 "author": "DITreneris",
-                "date": "2025-04-06T06:16:52+03:00",
+                "date": "2024-04-06T06:16:52+03:00",
                 "message": "Initial commit: Project setup with ML components"
               }
             ]
@@ -279,30 +939,204 @@
         {
           "version": 4,
           "hash": "5ae5c184d7b197c515fde619771b01940658e98ecb7b1827cf8ce95c2afec1ac",
-          "timestamp": "2025-04-06T06:51:27.980896",
+          "timestamp": "2024-04-06T06:51:27.980896",
           "frontmatter": {
             "version": 3,
-            "last_modified": "2025-04-06T06:36:12.896391",
+            "last_modified": "2024-04-06T06:36:12.896391",
             "git_history": [
               {
                 "hash": "ef3989ccbe50479c66e030aaee698d8d2e12ac0d",
                 "author": "User",
-                "date": "2025-04-06T06:36:00+03:00",
+                "date": "2024-04-06T06:36:00+03:00",
                 "message": "Initial commit"
               },
               {
                 "hash": "9084c731e73afe38f3a7b9ad5028d553d3efa4eb",
                 "author": "DITreneris",
-                "date": "2025-04-06T06:16:52+03:00",
+                "date": "2024-04-06T06:16:52+03:00",
+                "message": "Initial commit: Project setup with ML components"
+              }
+            ]
+          }
+        },
+        {
+          "version": 5,
+          "hash": "727ac601de399793bebc98bc9a6759c951bc60f27c4dde93913140881b50a554",
+          "timestamp": "2024-04-06T07:08:44.700018",
+          "frontmatter": {
+            "version": 4,
+            "last_modified": "2024-04-06T06:51:27.980896",
+            "git_history": [
+              {
+                "hash": "ef3989ccbe50479c66e030aaee698d8d2e12ac0d",
+                "author": "User",
+                "date": "2024-04-06T06:36:00+03:00",
+                "message": "Initial commit"
+              },
+              {
+                "hash": "9084c731e73afe38f3a7b9ad5028d553d3efa4eb",
+                "author": "DITreneris",
+                "date": "2024-04-06T06:16:52+03:00",
+                "message": "Initial commit: Project setup with ML components"
+              }
+            ]
+          }
+        },
+        {
+          "version": 6,
+          "hash": "156eed71c8526be75d9a7c8af37ace802207e7c207ed2592d33cd98bd538d8b8",
+          "timestamp": "2024-04-06T07:23:31.363831",
+          "frontmatter": {
+            "version": 5,
+            "last_modified": "2024-04-06T07:08:44.700018",
+            "git_history": [
+              {
+                "hash": "6a86e9ce0eddba890b90c8b1f9c8d192aaedae82",
+                "author": "User",
+                "date": "2024-04-06T07:06:49+03:00",
+                "message": "Initial commit: ARPGuard project with ML KPI monitoring system"
+              },
+              {
+                "hash": "ef3989ccbe50479c66e030aaee698d8d2e12ac0d",
+                "author": "User",
+                "date": "2024-04-06T06:36:00+03:00",
+                "message": "Initial commit"
+              },
+              {
+                "hash": "9084c731e73afe38f3a7b9ad5028d553d3efa4eb",
+                "author": "DITreneris",
+                "date": "2024-04-06T06:16:52+03:00",
+                "message": "Initial commit: Project setup with ML components"
+              }
+            ]
+          }
+        },
+        {
+          "version": 7,
+          "hash": "499f619908e9992f44e8c10c2cca796903b5401dae77a49a6305aa25a92f9c14",
+          "timestamp": "2024-04-06T07:25:30.768050",
+          "frontmatter": {
+            "version": 6,
+            "last_modified": "2024-04-06T07:23:31.363831",
+            "git_history": [
+              {
+                "hash": "6a86e9ce0eddba890b90c8b1f9c8d192aaedae82",
+                "author": "User",
+                "date": "2024-04-06T07:06:49+03:00",
+                "message": "Initial commit: ARPGuard project with ML KPI monitoring system"
+              },
+              {
+                "hash": "ef3989ccbe50479c66e030aaee698d8d2e12ac0d",
+                "author": "User",
+                "date": "2024-04-06T06:36:00+03:00",
+                "message": "Initial commit"
+              },
+              {
+                "hash": "9084c731e73afe38f3a7b9ad5028d553d3efa4eb",
+                "author": "DITreneris",
+                "date": "2024-04-06T06:16:52+03:00",
+                "message": "Initial commit: Project setup with ML components"
+              }
+            ]
+          }
+        },
+        {
+          "version": 8,
+          "hash": "28adce1e08fc9cd63ed94c2760f73a3da09d7ee31c139f4eced574dfd925018a",
+          "timestamp": "2024-04-06T07:26:43.676768",
+          "frontmatter": {
+            "version": 7,
+            "last_modified": "2024-04-06T07:25:30.768050",
+            "git_history": [
+              {
+                "hash": "6a86e9ce0eddba890b90c8b1f9c8d192aaedae82",
+                "author": "User",
+                "date": "2024-04-06T07:06:49+03:00",
+                "message": "Initial commit: ARPGuard project with ML KPI monitoring system"
+              },
+              {
+                "hash": "ef3989ccbe50479c66e030aaee698d8d2e12ac0d",
+                "author": "User",
+                "date": "2024-04-06T06:36:00+03:00",
+                "message": "Initial commit"
+              },
+              {
+                "hash": "9084c731e73afe38f3a7b9ad5028d553d3efa4eb",
+                "author": "DITreneris",
+                "date": "2024-04-06T06:16:52+03:00",
+                "message": "Initial commit: Project setup with ML components"
+              }
+            ]
+          }
+        },
+        {
+          "version": 9,
+          "hash": "2f2bee78f0f236fc45b410e7811761a61d36aab56019476a2db4038970ddb1d4",
+          "timestamp": "2024-04-06T07:27:13.551258",
+          "frontmatter": {
+            "version": 8,
+            "last_modified": "2024-04-06T07:26:43.676768",
+            "git_history": [
+              {
+                "hash": "6a86e9ce0eddba890b90c8b1f9c8d192aaedae82",
+                "author": "User",
+                "date": "2024-04-06T07:06:49+03:00",
+                "message": "Initial commit: ARPGuard project with ML KPI monitoring system"
+              },
+              {
+                "hash": "ef3989ccbe50479c66e030aaee698d8d2e12ac0d",
+                "author": "User",
+                "date": "2024-04-06T06:36:00+03:00",
+                "message": "Initial commit"
+              },
+              {
+                "hash": "9084c731e73afe38f3a7b9ad5028d553d3efa4eb",
+                "author": "DITreneris",
+                "date": "2024-04-06T06:16:52+03:00",
+                "message": "Initial commit: Project setup with ML components"
+              }
+            ]
+          }
+        },
+        {
+          "version": 10,
+          "hash": "56067d9cf449b0b800fef6ac262082a3215122d463280c8015883c74481b4847",
+          "timestamp": "2025-04-06T07:28:38.046299",
+          "frontmatter": {
+            "version": 9,
+            "last_modified": "2024-04-06T07:27:13.551258",
+            "git_history": [
+              {
+                "hash": "6a86e9ce0eddba890b90c8b1f9c8d192aaedae82",
+                "author": "User",
+                "date": "2024-04-06T07:06:49+03:00",
+                "message": "Initial commit: ARPGuard project with ML KPI monitoring system"
+              },
+              {
+                "hash": "ef3989ccbe50479c66e030aaee698d8d2e12ac0d",
+                "author": "User",
+                "date": "2024-04-06T06:36:00+03:00",
+                "message": "Initial commit"
+              },
+              {
+                "hash": "9084c731e73afe38f3a7b9ad5028d553d3efa4eb",
+                "author": "DITreneris",
+                "date": "2024-04-06T06:16:52+03:00",
                 "message": "Initial commit: Project setup with ML components"
               }
             ]
           }
         }
       ],
-      "current_version": 4,
-      "last_modified": "2025-04-06T06:51:27.980896",
+      "current_version": 10,
+      "last_modified": "2025-04-06T07:28:38.046299",
       "git_history": [
+        {
+          "hash": "6a86e9ce0eddba890b90c8b1f9c8d192aaedae82",
+          "author": "User",
+          "date": "2025-04-06T07:06:49+03:00",
+          "message": "Initial commit: ARPGuard project with ML KPI monitoring system"
+        },
         {
           "hash": "ef3989ccbe50479c66e030aaee698d8d2e12ac0d",
           "author": "User",
@@ -323,21 +1157,21 @@
         {
           "version": 2,
           "hash": "9da09cd6204366bba3698df7dcb6848cecf63b84135a19400749582b48f21acc",
-          "timestamp": "2025-04-06T06:34:37.027219",
+          "timestamp": "2024-04-06T06:34:37.027219",
           "frontmatter": {}
         },
         {
           "version": 3,
           "hash": "75ba8546cee7fa842eaed5f3c6f8c3e813415318463ab3f28f3acaba2ca79bf9",
-          "timestamp": "2025-04-06T06:36:12.993282",
+          "timestamp": "2024-04-06T06:36:12.993282",
           "frontmatter": {
             "version": 2,
-            "last_modified": "2025-04-06T06:34:37.027219",
+            "last_modified": "2024-04-06T06:34:37.027219",
             "git_history": [
               {
                 "hash": "29b832eb38d3ced4d071cd4afd35c6e6a868301f",
                 "author": "DITreneris",
-                "date": "2025-04-06T06:17:51+03:00",
+                "date": "2024-04-06T06:17:51+03:00",
                 "message": "docs: implement documentation version control and pre-commit hooks"
               }
             ]
@@ -346,30 +1180,204 @@
         {
           "version": 4,
           "hash": "3c5024df8ad9c9bccdca471dfcf792c3f3b2f95fb188c90dbb88073d6d3cbc56",
-          "timestamp": "2025-04-06T06:51:28.076828",
+          "timestamp": "2024-04-06T06:51:28.076828",
           "frontmatter": {
             "version": 3,
-            "last_modified": "2025-04-06T06:36:12.993282",
+            "last_modified": "2024-04-06T06:36:12.993282",
             "git_history": [
               {
                 "hash": "ef3989ccbe50479c66e030aaee698d8d2e12ac0d",
                 "author": "User",
-                "date": "2025-04-06T06:36:00+03:00",
+                "date": "2024-04-06T06:36:00+03:00",
                 "message": "Initial commit"
               },
               {
                 "hash": "29b832eb38d3ced4d071cd4afd35c6e6a868301f",
                 "author": "DITreneris",
-                "date": "2025-04-06T06:17:51+03:00",
+                "date": "2024-04-06T06:17:51+03:00",
+                "message": "docs: implement documentation version control and pre-commit hooks"
+              }
+            ]
+          }
+        },
+        {
+          "version": 5,
+          "hash": "88bfc748e44ac161788a3b3e6ca4ec1533d6649283744d2a21f7c0d7d9d825c3",
+          "timestamp": "2024-04-06T07:08:44.814282",
+          "frontmatter": {
+            "version": 4,
+            "last_modified": "2024-04-06T06:51:28.076828",
+            "git_history": [
+              {
+                "hash": "ef3989ccbe50479c66e030aaee698d8d2e12ac0d",
+                "author": "User",
+                "date": "2024-04-06T06:36:00+03:00",
+                "message": "Initial commit"
+              },
+              {
+                "hash": "29b832eb38d3ced4d071cd4afd35c6e6a868301f",
+                "author": "DITreneris",
+                "date": "2024-04-06T06:17:51+03:00",
+                "message": "docs: implement documentation version control and pre-commit hooks"
+              }
+            ]
+          }
+        },
+        {
+          "version": 6,
+          "hash": "e89fa25f6033bc5e6a4b935b34d67aea71928cd2a19210a180683a9c3ca77e2d",
+          "timestamp": "2024-04-06T07:23:31.495551",
+          "frontmatter": {
+            "version": 5,
+            "last_modified": "2024-04-06T07:08:44.814282",
+            "git_history": [
+              {
+                "hash": "6a86e9ce0eddba890b90c8b1f9c8d192aaedae82",
+                "author": "User",
+                "date": "2024-04-06T07:06:49+03:00",
+                "message": "Initial commit: ARPGuard project with ML KPI monitoring system"
+              },
+              {
+                "hash": "ef3989ccbe50479c66e030aaee698d8d2e12ac0d",
+                "author": "User",
+                "date": "2024-04-06T06:36:00+03:00",
+                "message": "Initial commit"
+              },
+              {
+                "hash": "29b832eb38d3ced4d071cd4afd35c6e6a868301f",
+                "author": "DITreneris",
+                "date": "2024-04-06T06:17:51+03:00",
+                "message": "docs: implement documentation version control and pre-commit hooks"
+              }
+            ]
+          }
+        },
+        {
+          "version": 7,
+          "hash": "e33a32a8eb61499904a4f98ee7ae938756c49e068136ab16d39f6759c48d0aa3",
+          "timestamp": "2024-04-06T07:25:30.874004",
+          "frontmatter": {
+            "version": 6,
+            "last_modified": "2024-04-06T07:23:31.495551",
+            "git_history": [
+              {
+                "hash": "6a86e9ce0eddba890b90c8b1f9c8d192aaedae82",
+                "author": "User",
+                "date": "2024-04-06T07:06:49+03:00",
+                "message": "Initial commit: ARPGuard project with ML KPI monitoring system"
+              },
+              {
+                "hash": "ef3989ccbe50479c66e030aaee698d8d2e12ac0d",
+                "author": "User",
+                "date": "2024-04-06T06:36:00+03:00",
+                "message": "Initial commit"
+              },
+              {
+                "hash": "29b832eb38d3ced4d071cd4afd35c6e6a868301f",
+                "author": "DITreneris",
+                "date": "2024-04-06T06:17:51+03:00",
+                "message": "docs: implement documentation version control and pre-commit hooks"
+              }
+            ]
+          }
+        },
+        {
+          "version": 8,
+          "hash": "9ccec160c0593c52eb64080f41f086094be60e93a609a3ca4f7cf1580fc8fbf8",
+          "timestamp": "2024-04-06T07:26:43.811017",
+          "frontmatter": {
+            "version": 7,
+            "last_modified": "2024-04-06T07:25:30.874004",
+            "git_history": [
+              {
+                "hash": "6a86e9ce0eddba890b90c8b1f9c8d192aaedae82",
+                "author": "User",
+                "date": "2024-04-06T07:06:49+03:00",
+                "message": "Initial commit: ARPGuard project with ML KPI monitoring system"
+              },
+              {
+                "hash": "ef3989ccbe50479c66e030aaee698d8d2e12ac0d",
+                "author": "User",
+                "date": "2024-04-06T06:36:00+03:00",
+                "message": "Initial commit"
+              },
+              {
+                "hash": "29b832eb38d3ced4d071cd4afd35c6e6a868301f",
+                "author": "DITreneris",
+                "date": "2024-04-06T06:17:51+03:00",
+                "message": "docs: implement documentation version control and pre-commit hooks"
+              }
+            ]
+          }
+        },
+        {
+          "version": 9,
+          "hash": "0934ff97ec70cd82b7737d39e42cb06d7edd3463b1a517d02cb00bab14d6710a",
+          "timestamp": "2024-04-06T07:27:13.663885",
+          "frontmatter": {
+            "version": 8,
+            "last_modified": "2024-04-06T07:26:43.811017",
+            "git_history": [
+              {
+                "hash": "6a86e9ce0eddba890b90c8b1f9c8d192aaedae82",
+                "author": "User",
+                "date": "2024-04-06T07:06:49+03:00",
+                "message": "Initial commit: ARPGuard project with ML KPI monitoring system"
+              },
+              {
+                "hash": "ef3989ccbe50479c66e030aaee698d8d2e12ac0d",
+                "author": "User",
+                "date": "2024-04-06T06:36:00+03:00",
+                "message": "Initial commit"
+              },
+              {
+                "hash": "29b832eb38d3ced4d071cd4afd35c6e6a868301f",
+                "author": "DITreneris",
+                "date": "2024-04-06T06:17:51+03:00",
+                "message": "docs: implement documentation version control and pre-commit hooks"
+              }
+            ]
+          }
+        },
+        {
+          "version": 10,
+          "hash": "a9eac9131dc2e93b81eb106c4657141ce311186a0fb7acef97353d20104adb19",
+          "timestamp": "2025-04-06T07:28:38.155750",
+          "frontmatter": {
+            "version": 9,
+            "last_modified": "2024-04-06T07:27:13.663885",
+            "git_history": [
+              {
+                "hash": "6a86e9ce0eddba890b90c8b1f9c8d192aaedae82",
+                "author": "User",
+                "date": "2024-04-06T07:06:49+03:00",
+                "message": "Initial commit: ARPGuard project with ML KPI monitoring system"
+              },
+              {
+                "hash": "ef3989ccbe50479c66e030aaee698d8d2e12ac0d",
+                "author": "User",
+                "date": "2024-04-06T06:36:00+03:00",
+                "message": "Initial commit"
+              },
+              {
+                "hash": "29b832eb38d3ced4d071cd4afd35c6e6a868301f",
+                "author": "DITreneris",
+                "date": "2024-04-06T06:17:51+03:00",
                 "message": "docs: implement documentation version control and pre-commit hooks"
               }
             ]
           }
         }
       ],
-      "current_version": 4,
-      "last_modified": "2025-04-06T06:51:28.076828",
+      "current_version": 10,
+      "last_modified": "2025-04-06T07:28:38.155750",
       "git_history": [
+        {
+          "hash": "6a86e9ce0eddba890b90c8b1f9c8d192aaedae82",
+          "author": "User",
+          "date": "2025-04-06T07:06:49+03:00",
+          "message": "Initial commit: ARPGuard project with ML KPI monitoring system"
+        },
         {
           "hash": "ef3989ccbe50479c66e030aaee698d8d2e12ac0d",
           "author": "User",
@@ -390,40 +1398,178 @@
         {
           "version": 2,
           "hash": "778c514ac45de8e1367b8d95d73e36ddf44edcfb778de9146d89d9484667d30b",
-          "timestamp": "2025-04-06T06:34:37.116243",
+          "timestamp": "2024-04-06T06:34:37.116243",
           "frontmatter": {}
         },
         {
           "version": 3,
           "hash": "2b3ce17661b8a34ce5ecfa68840895dc047dfbec68740a152aad8f1c077ebd2b",
-          "timestamp": "2025-04-06T06:36:13.081593",
+          "timestamp": "2024-04-06T06:36:13.081593",
           "frontmatter": {
             "version": 2,
-            "last_modified": "2025-04-06T06:34:37.116243",
+            "last_modified": "2024-04-06T06:34:37.116243",
             "git_history": []
           }
         },
         {
           "version": 4,
           "hash": "db7f86505fb359e3bd46fa71c00f91b71a5aa778efca00087fa5acf6c6f84e9d",
-          "timestamp": "2025-04-06T06:51:28.220287",
+          "timestamp": "2024-04-06T06:51:28.220287",
           "frontmatter": {
             "version": 3,
-            "last_modified": "2025-04-06T06:36:13.081593",
+            "last_modified": "2024-04-06T06:36:13.081593",
             "git_history": [
               {
                 "hash": "ef3989ccbe50479c66e030aaee698d8d2e12ac0d",
                 "author": "User",
-                "date": "2025-04-06T06:36:00+03:00",
+                "date": "2024-04-06T06:36:00+03:00",
+                "message": "Initial commit"
+              }
+            ]
+          }
+        },
+        {
+          "version": 5,
+          "hash": "08da963a7502450c7f7e6c3ceeab390913d1b3892c8153c6c8d624bc80f8b6e8",
+          "timestamp": "2024-04-06T07:08:45.045913",
+          "frontmatter": {
+            "version": 4,
+            "last_modified": "2024-04-06T06:51:28.220287",
+            "git_history": [
+              {
+                "hash": "ef3989ccbe50479c66e030aaee698d8d2e12ac0d",
+                "author": "User",
+                "date": "2024-04-06T06:36:00+03:00",
+                "message": "Initial commit"
+              }
+            ]
+          }
+        },
+        {
+          "version": 6,
+          "hash": "861e353e50cf5586035dade509cf72d2b34e189aef22058f9a45b360872178bc",
+          "timestamp": "2024-04-06T07:23:31.735772",
+          "frontmatter": {
+            "version": 5,
+            "last_modified": "2024-04-06T07:08:45.045913",
+            "git_history": [
+              {
+                "hash": "6a86e9ce0eddba890b90c8b1f9c8d192aaedae82",
+                "author": "User",
+                "date": "2024-04-06T07:06:49+03:00",
+                "message": "Initial commit: ARPGuard project with ML KPI monitoring system"
+              },
+              {
+                "hash": "ef3989ccbe50479c66e030aaee698d8d2e12ac0d",
+                "author": "User",
+                "date": "2024-04-06T06:36:00+03:00",
+                "message": "Initial commit"
+              }
+            ]
+          }
+        },
+        {
+          "version": 7,
+          "hash": "f628a0f6f927bca57ba7735641a16f9340f6801af3bcd765d4d489b121b0f273",
+          "timestamp": "2024-04-06T07:25:31.065050",
+          "frontmatter": {
+            "version": 6,
+            "last_modified": "2024-04-06T07:23:31.735772",
+            "git_history": [
+              {
+                "hash": "6a86e9ce0eddba890b90c8b1f9c8d192aaedae82",
+                "author": "User",
+                "date": "2024-04-06T07:06:49+03:00",
+                "message": "Initial commit: ARPGuard project with ML KPI monitoring system"
+              },
+              {
+                "hash": "ef3989ccbe50479c66e030aaee698d8d2e12ac0d",
+                "author": "User",
+                "date": "2024-04-06T06:36:00+03:00",
+                "message": "Initial commit"
+              }
+            ]
+          }
+        },
+        {
+          "version": 8,
+          "hash": "5dee56f99670cd9aaf3ec0e69ad51400f288dc2edd9f535010df025a920308e2",
+          "timestamp": "2024-04-06T07:26:43.996052",
+          "frontmatter": {
+            "version": 7,
+            "last_modified": "2024-04-06T07:25:31.065050",
+            "git_history": [
+              {
+                "hash": "6a86e9ce0eddba890b90c8b1f9c8d192aaedae82",
+                "author": "User",
+                "date": "2024-04-06T07:06:49+03:00",
+                "message": "Initial commit: ARPGuard project with ML KPI monitoring system"
+              },
+              {
+                "hash": "ef3989ccbe50479c66e030aaee698d8d2e12ac0d",
+                "author": "User",
+                "date": "2024-04-06T06:36:00+03:00",
+                "message": "Initial commit"
+              }
+            ]
+          }
+        },
+        {
+          "version": 9,
+          "hash": "5aa8520b9736aecaba1a94bbe7aa98692072405866c3e7226dbd024b900adff8",
+          "timestamp": "2024-04-06T07:27:13.888002",
+          "frontmatter": {
+            "version": 8,
+            "last_modified": "2024-04-06T07:26:43.996052",
+            "git_history": [
+              {
+                "hash": "6a86e9ce0eddba890b90c8b1f9c8d192aaedae82",
+                "author": "User",
+                "date": "2024-04-06T07:06:49+03:00",
+                "message": "Initial commit: ARPGuard project with ML KPI monitoring system"
+              },
+              {
+                "hash": "ef3989ccbe50479c66e030aaee698d8d2e12ac0d",
+                "author": "User",
+                "date": "2024-04-06T06:36:00+03:00",
+                "message": "Initial commit"
+              }
+            ]
+          }
+        },
+        {
+          "version": 10,
+          "hash": "14b096544d20cb696a000e929858a4486a9feea23e48ad9c5f53a796fc2e9d9c",
+          "timestamp": "2025-04-06T07:28:38.369845",
+          "frontmatter": {
+            "version": 9,
+            "last_modified": "2024-04-06T07:27:13.888002",
+            "git_history": [
+              {
+                "hash": "6a86e9ce0eddba890b90c8b1f9c8d192aaedae82",
+                "author": "User",
+                "date": "2024-04-06T07:06:49+03:00",
+                "message": "Initial commit: ARPGuard project with ML KPI monitoring system"
+              },
+              {
+                "hash": "ef3989ccbe50479c66e030aaee698d8d2e12ac0d",
+                "author": "User",
+                "date": "2024-04-06T06:36:00+03:00",
                 "message": "Initial commit"
               }
             ]
           }
         }
       ],
-      "current_version": 4,
-      "last_modified": "2025-04-06T06:51:28.220287",
+      "current_version": 10,
+      "last_modified": "2025-04-06T07:28:38.369845",
       "git_history": [
+        {
+          "hash": "6a86e9ce0eddba890b90c8b1f9c8d192aaedae82",
+          "author": "User",
+          "date": "2025-04-06T07:06:49+03:00",
+          "message": "Initial commit: ARPGuard project with ML KPI monitoring system"
+        },
         {
           "hash": "ef3989ccbe50479c66e030aaee698d8d2e12ac0d",
           "author": "User",
@@ -438,21 +1584,21 @@
         {
           "version": 2,
           "hash": "9321fc7e22f5f482b754b5a9b9699d84b0cb02b3f2ce85cbe40d7dc69a62f6e5",
-          "timestamp": "2025-04-06T06:34:37.206187",
+          "timestamp": "2024-04-06T06:34:37.206187",
           "frontmatter": {}
         },
         {
           "version": 3,
           "hash": "900621d06895b45552def90bf3018bf277419acd6f6adfbe72d42abce3d68d94",
-          "timestamp": "2025-04-06T06:36:13.170357",
+          "timestamp": "2024-04-06T06:36:13.170357",
           "frontmatter": {
             "version": 2,
-            "last_modified": "2025-04-06T06:34:37.206187",
+            "last_modified": "2024-04-06T06:34:37.206187",
             "git_history": [
               {
                 "hash": "9084c731e73afe38f3a7b9ad5028d553d3efa4eb",
                 "author": "DITreneris",
-                "date": "2025-04-06T06:16:52+03:00",
+                "date": "2024-04-06T06:16:52+03:00",
                 "message": "Initial commit: Project setup with ML components"
               }
             ]
@@ -461,30 +1607,204 @@
         {
           "version": 4,
           "hash": "c40f233b3a6c7aa7e8cc8ac4cd81a036b6372352c87aabfc0931fe80ed092c90",
-          "timestamp": "2025-04-06T06:51:28.336658",
+          "timestamp": "2024-04-06T06:51:28.336658",
           "frontmatter": {
             "version": 3,
-            "last_modified": "2025-04-06T06:36:13.170357",
+            "last_modified": "2024-04-06T06:36:13.170357",
             "git_history": [
               {
                 "hash": "ef3989ccbe50479c66e030aaee698d8d2e12ac0d",
                 "author": "User",
-                "date": "2025-04-06T06:36:00+03:00",
+                "date": "2024-04-06T06:36:00+03:00",
                 "message": "Initial commit"
               },
               {
                 "hash": "9084c731e73afe38f3a7b9ad5028d553d3efa4eb",
                 "author": "DITreneris",
-                "date": "2025-04-06T06:16:52+03:00",
+                "date": "2024-04-06T06:16:52+03:00",
+                "message": "Initial commit: Project setup with ML components"
+              }
+            ]
+          }
+        },
+        {
+          "version": 5,
+          "hash": "82162c0958ed708d8400549816cc74a0dacdffd8bcbd5465fe6d8c3ba69652bb",
+          "timestamp": "2024-04-06T07:08:45.144310",
+          "frontmatter": {
+            "version": 4,
+            "last_modified": "2024-04-06T06:51:28.336658",
+            "git_history": [
+              {
+                "hash": "ef3989ccbe50479c66e030aaee698d8d2e12ac0d",
+                "author": "User",
+                "date": "2024-04-06T06:36:00+03:00",
+                "message": "Initial commit"
+              },
+              {
+                "hash": "9084c731e73afe38f3a7b9ad5028d553d3efa4eb",
+                "author": "DITreneris",
+                "date": "2024-04-06T06:16:52+03:00",
+                "message": "Initial commit: Project setup with ML components"
+              }
+            ]
+          }
+        },
+        {
+          "version": 6,
+          "hash": "94f7d9b7e98a6e73a1bd5c156750b39225109b5399f5f1b8ac745ebfe4425a50",
+          "timestamp": "2024-04-06T07:23:31.874423",
+          "frontmatter": {
+            "version": 5,
+            "last_modified": "2024-04-06T07:08:45.144310",
+            "git_history": [
+              {
+                "hash": "6a86e9ce0eddba890b90c8b1f9c8d192aaedae82",
+                "author": "User",
+                "date": "2024-04-06T07:06:49+03:00",
+                "message": "Initial commit: ARPGuard project with ML KPI monitoring system"
+              },
+              {
+                "hash": "ef3989ccbe50479c66e030aaee698d8d2e12ac0d",
+                "author": "User",
+                "date": "2024-04-06T06:36:00+03:00",
+                "message": "Initial commit"
+              },
+              {
+                "hash": "9084c731e73afe38f3a7b9ad5028d553d3efa4eb",
+                "author": "DITreneris",
+                "date": "2024-04-06T06:16:52+03:00",
+                "message": "Initial commit: Project setup with ML components"
+              }
+            ]
+          }
+        },
+        {
+          "version": 7,
+          "hash": "f637572926cd6ca2347c3579874f85543ae0e4eb4307cef80db8b21698d9b266",
+          "timestamp": "2024-04-06T07:25:31.196222",
+          "frontmatter": {
+            "version": 6,
+            "last_modified": "2024-04-06T07:23:31.874423",
+            "git_history": [
+              {
+                "hash": "6a86e9ce0eddba890b90c8b1f9c8d192aaedae82",
+                "author": "User",
+                "date": "2024-04-06T07:06:49+03:00",
+                "message": "Initial commit: ARPGuard project with ML KPI monitoring system"
+              },
+              {
+                "hash": "ef3989ccbe50479c66e030aaee698d8d2e12ac0d",
+                "author": "User",
+                "date": "2024-04-06T06:36:00+03:00",
+                "message": "Initial commit"
+              },
+              {
+                "hash": "9084c731e73afe38f3a7b9ad5028d553d3efa4eb",
+                "author": "DITreneris",
+                "date": "2024-04-06T06:16:52+03:00",
+                "message": "Initial commit: Project setup with ML components"
+              }
+            ]
+          }
+        },
+        {
+          "version": 8,
+          "hash": "f593fc012127ff65f4c0438d61d5e32735c83363745b0d6542adb6441e048ba1",
+          "timestamp": "2024-04-06T07:26:44.106993",
+          "frontmatter": {
+            "version": 7,
+            "last_modified": "2024-04-06T07:25:31.196222",
+            "git_history": [
+              {
+                "hash": "6a86e9ce0eddba890b90c8b1f9c8d192aaedae82",
+                "author": "User",
+                "date": "2024-04-06T07:06:49+03:00",
+                "message": "Initial commit: ARPGuard project with ML KPI monitoring system"
+              },
+              {
+                "hash": "ef3989ccbe50479c66e030aaee698d8d2e12ac0d",
+                "author": "User",
+                "date": "2024-04-06T06:36:00+03:00",
+                "message": "Initial commit"
+              },
+              {
+                "hash": "9084c731e73afe38f3a7b9ad5028d553d3efa4eb",
+                "author": "DITreneris",
+                "date": "2024-04-06T06:16:52+03:00",
+                "message": "Initial commit: Project setup with ML components"
+              }
+            ]
+          }
+        },
+        {
+          "version": 9,
+          "hash": "3949705d23ecbdeded4e97925b67a8b7438cb7635cae8a605af92740f6390630",
+          "timestamp": "2024-04-06T07:27:14.023719",
+          "frontmatter": {
+            "version": 8,
+            "last_modified": "2024-04-06T07:26:44.106993",
+            "git_history": [
+              {
+                "hash": "6a86e9ce0eddba890b90c8b1f9c8d192aaedae82",
+                "author": "User",
+                "date": "2024-04-06T07:06:49+03:00",
+                "message": "Initial commit: ARPGuard project with ML KPI monitoring system"
+              },
+              {
+                "hash": "ef3989ccbe50479c66e030aaee698d8d2e12ac0d",
+                "author": "User",
+                "date": "2024-04-06T06:36:00+03:00",
+                "message": "Initial commit"
+              },
+              {
+                "hash": "9084c731e73afe38f3a7b9ad5028d553d3efa4eb",
+                "author": "DITreneris",
+                "date": "2024-04-06T06:16:52+03:00",
+                "message": "Initial commit: Project setup with ML components"
+              }
+            ]
+          }
+        },
+        {
+          "version": 10,
+          "hash": "a6e203001ea151d5e9d1f79f312d5b00284ae89dad235c31216f761ab834e98f",
+          "timestamp": "2025-04-06T07:28:38.498717",
+          "frontmatter": {
+            "version": 9,
+            "last_modified": "2024-04-06T07:27:14.023719",
+            "git_history": [
+              {
+                "hash": "6a86e9ce0eddba890b90c8b1f9c8d192aaedae82",
+                "author": "User",
+                "date": "2024-04-06T07:06:49+03:00",
+                "message": "Initial commit: ARPGuard project with ML KPI monitoring system"
+              },
+              {
+                "hash": "ef3989ccbe50479c66e030aaee698d8d2e12ac0d",
+                "author": "User",
+                "date": "2024-04-06T06:36:00+03:00",
+                "message": "Initial commit"
+              },
+              {
+                "hash": "9084c731e73afe38f3a7b9ad5028d553d3efa4eb",
+                "author": "DITreneris",
+                "date": "2024-04-06T06:16:52+03:00",
                 "message": "Initial commit: Project setup with ML components"
               }
             ]
           }
         }
       ],
-      "current_version": 4,
-      "last_modified": "2025-04-06T06:51:28.336658",
+      "current_version": 10,
+      "last_modified": "2025-04-06T07:28:38.498717",
       "git_history": [
+        {
+          "hash": "6a86e9ce0eddba890b90c8b1f9c8d192aaedae82",
+          "author": "User",
+          "date": "2025-04-06T07:06:49+03:00",
+          "message": "Initial commit: ARPGuard project with ML KPI monitoring system"
+        },
         {
           "hash": "ef3989ccbe50479c66e030aaee698d8d2e12ac0d",
           "author": "User",
@@ -498,11 +1818,235 @@
           "message": "Initial commit: Project setup with ML components"
         }
       ]
+    },
+    "docs\\project_health.md": {
+      "path": "project_health.md",
+      "versions": [
+        {
+          "version": 2,
+          "hash": "51a2dcf181f4f862db8bf2278e860dba3fd2bcf8492a6fd8b1b429b435bfb1d5",
+          "timestamp": "2024-04-06T07:08:44.611776",
+          "frontmatter": {}
+        },
+        {
+          "version": 3,
+          "hash": "6c36f812624f794d62d73ae36f4d2856d6cefb27b5f89e6ee51d97268aecd91e",
+          "timestamp": "2024-04-06T07:23:31.256080",
+          "frontmatter": {
+            "version": 2,
+            "last_modified": "2024-04-06T07:08:44.611776",
+            "git_history": [
+              {
+                "hash": "6a86e9ce0eddba890b90c8b1f9c8d192aaedae82",
+                "author": "User",
+                "date": "2024-04-06T07:06:49+03:00",
+                "message": "Initial commit: ARPGuard project with ML KPI monitoring system"
+              }
+            ]
+          }
+        },
+        {
+          "version": 4,
+          "hash": "619ada9d398f0c803c3be6aba24e4653dd8967960e822c3ecb785b0418ff0816",
+          "timestamp": "2024-04-06T07:25:30.669154",
+          "frontmatter": {
+            "version": 3,
+            "last_modified": "2024-04-06T07:23:31.256080",
+            "git_history": [
+              {
+                "hash": "6a86e9ce0eddba890b90c8b1f9c8d192aaedae82",
+                "author": "User",
+                "date": "2024-04-06T07:06:49+03:00",
+                "message": "Initial commit: ARPGuard project with ML KPI monitoring system"
+              }
+            ]
+          }
+        },
+        {
+          "version": 5,
+          "hash": "53fff084c629ec20dbd8b313d7ea25ff478e0fba40c5e128b57093458f0fec6f",
+          "timestamp": "2024-04-06T07:26:43.576117",
+          "frontmatter": {
+            "version": 4,
+            "last_modified": "2024-04-06T07:25:30.669154",
+            "git_history": [
+              {
+                "hash": "6a86e9ce0eddba890b90c8b1f9c8d192aaedae82",
+                "author": "User",
+                "date": "2024-04-06T07:06:49+03:00",
+                "message": "Initial commit: ARPGuard project with ML KPI monitoring system"
+              }
+            ]
+          }
+        },
+        {
+          "version": 6,
+          "hash": "6c440f9317250d1a66a8ec7cf9831fc9c93df11898ab091b6520d74638bfb293",
+          "timestamp": "2024-04-06T07:27:13.430032",
+          "frontmatter": {
+            "version": 5,
+            "last_modified": "2024-04-06T07:26:43.576117",
+            "git_history": [
+              {
+                "hash": "6a86e9ce0eddba890b90c8b1f9c8d192aaedae82",
+                "author": "User",
+                "date": "2024-04-06T07:06:49+03:00",
+                "message": "Initial commit: ARPGuard project with ML KPI monitoring system"
+              }
+            ]
+          }
+        },
+        {
+          "version": 7,
+          "hash": "656bb0b9a67d926fd1ba67c670b68d42d77511c4ec8552989916f7f9adeccd41",
+          "timestamp": "2025-04-06T07:28:37.932246",
+          "frontmatter": {
+            "version": 6,
+            "last_modified": "2024-04-06T07:27:13.430032",
+            "git_history": [
+              {
+                "hash": "6a86e9ce0eddba890b90c8b1f9c8d192aaedae82",
+                "author": "User",
+                "date": "2024-04-06T07:06:49+03:00",
+                "message": "Initial commit: ARPGuard project with ML KPI monitoring system"
+              }
+            ]
+          }
+        }
+      ],
+      "current_version": 7,
+      "last_modified": "2025-04-06T07:28:37.932246",
+      "git_history": [
+        {
+          "hash": "6a86e9ce0eddba890b90c8b1f9c8d192aaedae82",
+          "author": "User",
+          "date": "2025-04-06T07:06:49+03:00",
+          "message": "Initial commit: ARPGuard project with ML KPI monitoring system"
+        }
+      ]
+    },
+    "docs\\website_integration.md": {
+      "path": "website_integration.md",
+      "versions": [
+        {
+          "version": 2,
+          "hash": "1b7d57c184e8d380f3bf4693be70788261c42264502e97c7ce3d1129cb652ed3",
+          "timestamp": "2024-04-06T07:08:44.936268",
+          "frontmatter": {}
+        },
+        {
+          "version": 3,
+          "hash": "8ece02f26da23ff62a49eb194e6e808093d1d3eb9c7e2cb4d2b8bfaaed4af196",
+          "timestamp": "2024-04-06T07:23:31.624202",
+          "frontmatter": {
+            "version": 2,
+            "last_modified": "2024-04-06T07:08:44.936268",
+            "git_history": []
+          }
+        },
+        {
+          "version": 4,
+          "hash": "66d868d7c6d5e416ca544ab9967d3d034c50479d057e10af6b3d2601840d01c3",
+          "timestamp": "2024-04-06T07:25:30.969735",
+          "frontmatter": {
+            "version": 3,
+            "last_modified": "2024-04-06T07:23:31.624202",
+            "git_history": []
+          }
+        },
+        {
+          "version": 5,
+          "hash": "f44174b6a7f9905946c916a17fb127dd4dda91921dadc68df0be1900f31bd1c7",
+          "timestamp": "2024-04-06T07:26:43.899692",
+          "frontmatter": {
+            "version": 4,
+            "last_modified": "2024-04-06T07:25:30.969735",
+            "git_history": []
+          }
+        },
+        {
+          "version": 6,
+          "hash": "34229b6d652a5cb5a7d691964003206fcd90ae4ea8f9eb8da85801ef2efa6f28",
+          "timestamp": "2024-04-06T07:27:13.778324",
+          "frontmatter": {
+            "version": 5,
+            "last_modified": "2024-04-06T07:26:43.899692",
+            "git_history": []
+          }
+        },
+        {
+          "version": 7,
+          "hash": "82b6a40a1bd7ff36d36261311388a44b8ef0b7ad0a660e091ad5c49d47bee881",
+          "timestamp": "2025-04-06T07:28:38.263937",
+          "frontmatter": {
+            "version": 6,
+            "last_modified": "2024-04-06T07:27:13.778324",
+            "git_history": []
+          }
+        }
+      ],
+      "current_version": 7,
+      "last_modified": "2025-04-06T07:28:38.263937",
+      "git_history": []
+    },
+    "docs\\ml_rule_based_detection.md": {
+      "path": "ml_rule_based_detection.md",
+      "versions": [
+        {
+          "version": 2,
+          "hash": "6cf3606511a76587a0bd88f06e716830c65fc84fa5aa608d406dac181b04b22a",
+          "timestamp": "2024-04-06T07:23:31.137771",
+          "frontmatter": {}
+        },
+        {
+          "version": 3,
+          "hash": "d1c9c1e30e34de096953329b233ded13972a1dcb0873e968b734b8f68d20ee43",
+          "timestamp": "2024-04-06T07:25:30.574312",
+          "frontmatter": {
+            "version": 1.0,
+            "last_modified": "2024-04-06T07:23:31.137771",
+            "git_history": []
+          }
+        },
+        {
+          "version": 4,
+          "hash": "dfc516680117f040864c80b6786d024555ae9b6de7afc095b6b5e52deb3a1199",
+          "timestamp": "2024-04-06T07:26:43.468194",
+          "frontmatter": {
+            "version": 3,
+            "last_modified": "2024-04-06T07:25:30.574312",
+            "git_history": []
+          }
+        },
+        {
+          "version": 5,
+          "hash": "332750089fa8c58ee6c1b8c4e4e9cb18ea8dba5746e2d8d2f6de6be577056d22",
+          "timestamp": "2024-04-06T07:27:13.322358",
+          "frontmatter": {
+            "version": 4,
+            "last_modified": "2024-04-06T07:26:43.468194",
+            "git_history": []
+          }
+        },
+        {
+          "version": 6,
+          "hash": "668bb2645ce6d18008eb37c0bfe4cf62d985667ad2a7f29a13505cbb3be622b0",
+          "timestamp": "2025-04-06T07:28:37.828346",
+          "frontmatter": {
+            "version": 5,
+            "last_modified": "2024-04-06T07:27:13.322358",
+            "git_history": []
+          }
+        }
+      ],
+      "current_version": 6,
+      "last_modified": "2025-04-06T07:28:37.828346",
+      "git_history": []
     }
   },
-  "last_updated": "2025-04-06T06:51:28.345763",
+  "last_updated": "2025-04-06T07:28:38.510686",
   "metadata": {
-    "total_versions": 24,
-    "total_documents": 8
+    "total_versions": 89,
+    "total_documents": 11
   }
 }

@@ -1,0 +1,81 @@
+# ARPGuard ML Detection Configuration
+# This file configures the machine learning based detection layer
+
+# ML Detection Settings
+ml:
+  detection:
+    # Enable or disable ML-based detection
+    enabled: true
+    
+    # Use anomaly detection
+    use_anomaly: true
+    
+    # Use classification
+    use_classification: true
+    
+    # Severity level for anomaly detections
+    # Options: LOW, MEDIUM, HIGH, CRITICAL
+    anomaly_severity: MEDIUM
+    
+    # Minimum confidence threshold (0.0-1.0)
+    # Detections below this confidence will be ignored
+    min_confidence: 0.7
+    
+    # Maximum number of detections to store in history
+    max_detections: 1000
+    
+  # Training Settings
+  training:
+    # Enable automatic training
+    enabled: true
+    
+    # Collect samples for training
+    collect_samples: true
+    
+    # Minimum number of samples needed for training
+    min_samples: 1000
+    
+    # Training interval in seconds (default: 1 day)
+    interval: 86400
+    
+    # Clear training data after training
+    clear_after_training: true
+    
+    # Maximum number of training samples to keep
+    max_samples: 10000
+    
+  # Model Settings
+  models:
+    # Anomaly detector settings
+    anomaly:
+      # Algorithm: currently only "isolation_forest" is supported
+      algorithm: isolation_forest
+      
+      # Contamination parameter (0.0-0.5)
+      # Higher values make the detector more sensitive
+      contamination: 0.1
+      
+      # Number of estimators
+      n_estimators: 100
+    
+    # Classifier settings
+    classifier:
+      # Algorithm: currently only "random_forest" is supported
+      algorithm: random_forest
+      
+      # Number of estimators
+      n_estimators: 100
+      
+      # Use class weights to handle imbalanced data
+      class_weight: balanced
+  
+  # Feature extraction settings
+  features:
+    # Maximum number of recent packets to keep for temporal features
+    max_recent_packets: 100
+    
+    # Time window in seconds for temporal features
+    packet_window: 30
+    
+    # Feature selection mode: "all", "basic", or "advanced"
+    selection_mode: all 

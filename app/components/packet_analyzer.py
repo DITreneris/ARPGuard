@@ -12,6 +12,7 @@ import netifaces
 from app.utils.logger import get_logger
 from app.utils.config import get_config
 from app.utils.database import get_database
+from app.utils.memory_manager import MemoryManager, PacketMemoryOptimizer, MemoryPressureLevel
 
 # Module logger
 logger = get_logger('components.packet_analyzer')
@@ -25,12 +26,18 @@ class PacketAnalyzer:
         self.analyzer_thread = None
         self.config = get_config()
         
+        # Initialize memory manager
+        self.memory_manager = MemoryManager()
+        self.packet_optimizer = PacketMemoryOptimizer(self.memory_manager)
+        
+        # Register for memory pressure callbacks
+        self.memory_manager.register_pressure_callback(self._handle_memory_pressure)
+        
         # Initialize packet storage with memory optimization
         self.packet_history = []  # Limited history of actual packets
         self.max_history = self.config.get("analyzer.max_packets", 1000)
         self.packet_buffer = []  # Temporary buffer for batch processing
-        self.buffer_size = 100  # Process packets in batches of 100
-        self.memory_threshold = 0.8  # Memory usage threshold (80%)
+        self.buffer_size = self.memory_manager.get_max_buffer_size() // 10  # Start with 1/10th of max
         
         # Storage for analysis results with memory optimization
         self.protocol_counts = Counter()
@@ -57,9 +64,18 @@ class PacketAnalyzer:
         self.db_session_id = None
         self.database = get_database()
         
-        # Memory monitoring
-        self.last_memory_check = time.time()
-        self.memory_check_interval = 60  # Check memory every 60 seconds
+        # Memory management statistics
+        self.mem_packets_dropped = 0
+        self.mem_packets_optimized = 0
+        self.mem_bytes_saved = 0
+        
+        # Start memory monitoring
+        self.memory_manager.start_monitoring()
+        
+    def __del__(self):
+        """Clean up resources when the analyzer is destroyed."""
+        self.stop_capture()
+        self.memory_manager.stop_monitoring()
         
     def start_capture(self, 
                      interface: Optional[str] = None,
@@ -97,6 +113,13 @@ class PacketAnalyzer:
         
         # Clear packet history
         self.packet_history = []
+        
+        # Reset memory manager metrics
+        self.memory_manager.reset_metrics()
+        self.packet_optimizer.reset_metrics()
+        
+        # Adjust buffer size based on current memory conditions
+        self.buffer_size = max(50, self.memory_manager.get_max_buffer_size() // 10)
         
         # Create database session if saving to DB
         if save_to_db:
@@ -173,10 +196,20 @@ class PacketAnalyzer:
             except Exception as e:
                 logger.error(f"Error ending database session: {e}")
         
-        if self.status_callback:
-            self.status_callback(True, f"Stopped packet capture. Analyzed {self.packets_analyzed} packets.")
+        # Log memory management metrics
+        mem_metrics = self.memory_manager.get_metrics()
+        optimizer_metrics = self.packet_optimizer.get_metrics()
         
-        logger.info(f"Stopped packet capture. Analyzed {self.packets_analyzed} packets.")
+        logger.info(f"Memory management metrics: "
+                   f"Pressure changes: {mem_metrics.get('pressure_changes', 0)}, "
+                   f"Peak memory usage: {mem_metrics.get('peak_memory_usage', 0):.1f}%, "
+                   f"Packets dropped: {mem_metrics.get('packets_dropped', 0)}")
+        
+        logger.info(f"Packet optimization metrics: "
+                   f"Packets optimized: {optimizer_metrics.get('packets_optimized', 0)}, "
+                   f"Bytes saved: {optimizer_metrics.get('bytes_saved', 0) / (1024*1024):.2f} MB, "
+                   f"Payloads truncated: {optimizer_metrics.get('payloads_truncated', 0)}")
+        
         return True
         
     def get_statistics(self) -> Dict[str, Any]:
@@ -292,95 +325,342 @@ class PacketAnalyzer:
         finally:
             self.running = False
             
-    def _check_memory_usage(self):
-        """Check system memory usage and adjust packet storage accordingly."""
-        current_time = time.time()
-        if current_time - self.last_memory_check < self.memory_check_interval:
+    def _process_packet(self, packet):
+        """
+        Process a single packet.
+        
+        Args:
+            packet: Scapy packet object
+        """
+        # Check if we should process this packet based on memory conditions
+        if not self.memory_manager.should_process_packet():
+            self.mem_packets_dropped += 1
             return
             
-        self.last_memory_check = current_time
+        # Extract features from packet
+        packet_dict = self._extract_packet_features(packet)
         
-        try:
-            import psutil
-            memory = psutil.virtual_memory()
-            memory_usage = memory.percent / 100.0
+        # Optimize packet storage
+        optimized_packet = self.packet_optimizer.optimize_packet(packet_dict)
+        self.mem_packets_optimized += 1
+        
+        # Add to buffer
+        self.packet_buffer.append(optimized_packet)
+        
+        # Process buffer if it reaches the threshold
+        if len(self.packet_buffer) >= self.buffer_size:
+            self._process_packet_buffer()
             
-            if memory_usage > self.memory_threshold:
-                # Reduce packet history size when memory usage is high
-                new_max = int(self.max_history * (1 - (memory_usage - self.memory_threshold)))
-                if new_max < 100:  # Keep at least 100 packets
-                    new_max = 100
-                    
-                if new_max < len(self.packet_history):
-                    # Remove oldest packets
-                    self.packet_history = self.packet_history[-new_max:]
-                    logger.info(f"Reduced packet history to {new_max} packets due to high memory usage")
-                    
-        except ImportError:
-            logger.warning("psutil not available for memory monitoring")
-            
+        # Update metrics
+        self.packets_analyzed += 1
+        size = len(packet) if hasattr(packet, "__len__") else 0
+        self.bytes_analyzed += size
+        
     def _process_packet_buffer(self):
-        """Process buffered packets in batches to reduce memory pressure."""
+        """Process the accumulated packet buffer."""
         if not self.packet_buffer:
             return
             
-        # Process packets in batches
-        for packet_info in self.packet_buffer:
-            # Update statistics
-            self._update_statistics(packet_info)
+        start_time = time.time()
+        buffer_size = len(self.packet_buffer)
+        
+        # Add to history with size limit
+        history_limit = min(self.max_history, self.memory_manager.get_max_buffer_size())
+        self.packet_history.extend(self.packet_buffer)
+        
+        # Trim history if needed
+        if len(self.packet_history) > history_limit:
+            # Keep the most recent packets
+            self.packet_history = self.packet_history[-history_limit:]
             
-            # Add to history, limiting size
-            self.packet_history.append(packet_info)
-            if len(self.packet_history) > self.max_history:
-                self.packet_history = self.packet_history[-self.max_history:]
+        # Update analytics
+        for packet in self.packet_buffer:
+            self._update_analytics(packet)
+            
+        # Save to database if active
+        if self.db_session_id:
+            try:
+                # Save in batches for efficiency
+                self.database.add_packets(self.db_session_id, self.packet_buffer)
                 
-            # Save to database if session is active
-            if self.db_session_id:
-                # Store the packet without raw data to save memory
-                packet_info_copy = packet_info.copy()
-                if 'raw_packet' in packet_info_copy:
-                    del packet_info_copy['raw_packet']
-                self.database.add_packet(self.db_session_id, packet_info_copy)
+                # Periodically save traffic snapshots
+                now = datetime.now()
+                if (now - self.last_update_time).total_seconds() >= 60:  # Every minute
+                    self._save_traffic_snapshot()
+                    self.last_update_time = now
+                    
+            except Exception as e:
+                logger.error(f"Error saving packets to database: {e}")
                 
-            # Notify callback if provided
-            if self.packet_callback:
-                self.packet_callback(packet_info)
-                
+        # Call packet callback if set
+        if self.packet_callback:
+            for packet in self.packet_buffer:
+                try:
+                    self.packet_callback(packet)
+                except Exception as e:
+                    logger.error(f"Error in packet callback: {e}")
+                    
         # Clear buffer
+        processed_count = len(self.packet_buffer)
         self.packet_buffer = []
         
-    def _process_packet(self, packet):
-        """Process a captured packet for analysis.
+        # Log performance
+        processing_time = time.time() - start_time
+        if processing_time > 0.1:  # Only log if it took more than 100ms
+            logger.debug(f"Processed {processed_count} packets in {processing_time:.3f}s "
+                        f"({processed_count/processing_time:.1f} packets/s)")
+        
+    def _handle_memory_pressure(self, level: MemoryPressureLevel):
+        """
+        Handle changes in memory pressure level.
         
         Args:
-            packet: The Scapy packet
+            level: New memory pressure level
+        """
+        logger.info(f"Memory pressure changed to {level}, adjusting packet capture behavior")
+        
+        # Adjust buffer size based on memory pressure
+        new_buffer_size = max(10, self.memory_manager.get_max_buffer_size() // 10)
+        
+        # Log the change
+        logger.info(f"Adjusting packet buffer size from {self.buffer_size} to {new_buffer_size}")
+        
+        # Update buffer size
+        self.buffer_size = new_buffer_size
+        
+        # Trim history if pressure is high or critical
+        if level in (MemoryPressureLevel.HIGH, MemoryPressureLevel.CRITICAL):
+            self._trim_packet_history(aggressive=True)
+            
+        # Process any pending packets in buffer if high/critical pressure
+        if level in (MemoryPressureLevel.HIGH, MemoryPressureLevel.CRITICAL) and len(self.packet_buffer) > 0:
+            self._process_packet_buffer()
+
+        # Register the adaptive action
+        self.memory_manager.register_adaptive_action()
+        
+    def _trim_packet_history(self, aggressive=False):
+        """
+        Trim packet history to reduce memory usage.
+        
+        Args:
+            aggressive: If True, trim more aggressively
+        """
+        if not self.packet_history:
+            return
+            
+        current_size = len(self.packet_history)
+        
+        if aggressive:
+            # Keep only 25% of packets during high memory pressure
+            target_size = max(100, current_size // 4)
+        else:
+            # Keep 50% of packets during normal trim
+            target_size = max(100, current_size // 2)
+            
+        if current_size > target_size:
+            # Keep newest packets, discard oldest
+            self.packet_history = self.packet_history[-target_size:]
+            logger.info(f"Trimmed packet history from {current_size} to {len(self.packet_history)}")
+        
+    def _send_status_update(self):
+        """Send a status update via the callback if registered."""
+        if not self.status_callback:
+            return
+            
+        current_time = datetime.now()
+        duration = (current_time - self.start_time).total_seconds()
+        packets_per_second = self.packets_analyzed / max(1, duration)
+        
+        status_message = (
+            f"Captured {self.packets_analyzed} packets "
+            f"({self.bytes_analyzed} bytes) in {duration:.1f} seconds "
+            f"({packets_per_second:.1f} packets/sec)"
+        )
+        
+        self.status_callback(True, status_message)
+        
+    def _get_default_interface(self) -> Optional[str]:
+        """Get the default network interface.
+        
+        Returns:
+            str: Interface name or None if unavailable
         """
         try:
-            # Extract packet information
-            packet_info = self._extract_packet_info(packet)
-            if not packet_info:
-                return
+            # Get the default gateway interface
+            gateways = netifaces.gateways()
+            if 'default' in gateways and netifaces.AF_INET in gateways['default']:
+                _, interface = gateways['default'][netifaces.AF_INET]
+                return interface
                 
-            # Check exclusion list
-            src_ip = packet_info.get('src_ip')
-            dst_ip = packet_info.get('dst_ip')
-            if (src_ip and src_ip in self.exclude_ips) or (dst_ip and dst_ip in self.exclude_ips):
-                return
-                
-            # Add to buffer
-            self.packet_buffer.append(packet_info)
-            
-            # Process buffer if it's full
-            if len(self.packet_buffer) >= self.buffer_size:
-                self._process_packet_buffer()
-                
-            # Check memory usage periodically
-            self._check_memory_usage()
-                
+            # If no default found, try to use the first non-loopback interface
+            for interface in netifaces.interfaces():
+                if interface != 'lo' and interface != 'localhost':
+                    addresses = netifaces.ifaddresses(interface)
+                    if netifaces.AF_INET in addresses:
+                        return interface
+                        
         except Exception as e:
-            logger.error(f"Error processing packet: {e}")
+            logger.error(f"Error determining default interface: {e}")
             
-    def _extract_packet_info(self, packet) -> Optional[Dict[str, Any]]:
+        return None 
+
+    def _maybe_save_traffic_snapshot(self) -> None:
+        """Save traffic snapshot if enough time has passed."""
+        if not self.db_session_id:
+            return
+            
+        now = datetime.now()
+        
+        # Initialize last snapshot time if needed
+        if self.stats['last_snapshot_time'] is None:
+            self.stats['last_snapshot_time'] = now
+            return
+            
+        # Check if it's time for a new snapshot (every 10 seconds)
+        time_since_last = (now - self.stats['last_snapshot_time']).total_seconds()
+        if time_since_last >= 10:
+            self._save_traffic_snapshot()
+            self.stats['last_snapshot_time'] = now
+    
+    def _save_traffic_snapshot(self) -> None:
+        """Save a traffic snapshot to the database."""
+        if not self.db_session_id:
+            return
+            
+        try:
+            # Get current statistics
+            stats = self.get_statistics()
+            
+            # Prepare protocol stats
+            protocol_stats = {}
+            for proto, count in self.protocol_counts.items():
+                protocol_stats[proto] = {
+                    'count': count,
+                    'bytes': self.bytes_analyzed
+                }
+                
+            # Add protocol stats to database
+            self.database.add_protocol_stats(
+                self.db_session_id,
+                datetime.now(),
+                protocol_stats
+            )
+            
+            # Prepare IP stats
+            ip_stats = {}
+            for ip, traffic in self.ip_counts.items():
+                ip_stats[ip] = {
+                    'sent_packets': traffic,
+                    'recv_packets': self.dst_ip_counts[ip],
+                    'sent_bytes': self.bytes_analyzed
+                }
+                
+            # Add IP stats to database
+            self.database.add_ip_stats(
+                self.db_session_id,
+                datetime.now(),
+                ip_stats
+            )
+            
+            # Add traffic snapshot
+            self.database.add_traffic_snapshot(
+                self.db_session_id,
+                datetime.now(),
+                stats['duration_seconds'],
+                stats['packets_analyzed'],
+                stats['bytes_analyzed'],
+                stats['packets_per_second'],
+                stats['bytes_per_second'],
+                {
+                    'top_source_ips': dict(Counter(self.ip_counts).most_common(10)),
+                    'top_destination_ips': dict(Counter(self.dst_ip_counts).most_common(10)),
+                    'tcp_ports': dict(Counter(self.port_counts).most_common(10)),
+                    'http_methods': dict(Counter(self.protocol_counts).most_common(10)),
+                    'dns_queries': dict(Counter(self.protocol_counts).most_common(10))
+                }
+            )
+            
+            logger.debug(f"Saved traffic snapshot for session {self.db_session_id}")
+            
+        except Exception as e:
+            logger.error(f"Error saving traffic snapshot: {e}")
+        
+    def get_memory_stats(self) -> Dict[str, Any]:
+        """
+        Get memory management statistics.
+        
+        Returns:
+            Dict containing memory statistics
+        """
+        mem_metrics = self.memory_manager.get_metrics()
+        optimizer_metrics = self.packet_optimizer.get_metrics()
+        
+        stats = {
+            "current_memory_usage": mem_metrics.get("current_memory_usage", 0),
+            "peak_memory_usage": mem_metrics.get("peak_memory_usage", 0),
+            "memory_pressure_level": mem_metrics.get("current_pressure_level", "LOW"),
+            "memory_checks": mem_metrics.get("memory_checks", 0),
+            "pressure_changes": mem_metrics.get("pressure_changes", 0),
+            "gc_invocations": mem_metrics.get("gc_invocations", 0),
+            "packets_dropped": mem_metrics.get("packets_dropped", 0) + self.mem_packets_dropped,
+            "packets_optimized": optimizer_metrics.get("packets_optimized", 0),
+            "bytes_saved": optimizer_metrics.get("bytes_saved", 0),
+            "payloads_truncated": optimizer_metrics.get("payloads_truncated", 0),
+            "buffer_size": self.buffer_size,
+            "max_buffer_size": self.memory_manager.get_max_buffer_size(),
+            "history_size": len(self.packet_history),
+            "ip_cache_size": optimizer_metrics.get("ip_cache_size", 0),
+            "mac_cache_size": optimizer_metrics.get("mac_cache_size", 0),
+            "current_strategy": {
+                "sampling_rate": self.memory_manager.get_current_strategy().get("sampling_rate", 1.0),
+                "max_payload_size": self.packet_optimizer.max_payload_size
+            },
+            "process_memory": mem_metrics.get("process_memory", {})
+        }
+        
+        return stats
+        
+    def _reset_statistics(self):
+        """Reset all statistical counters."""
+        self.protocol_counts = Counter()
+        self.ip_counts = defaultdict(int)
+        self.dst_ip_counts = defaultdict(int)
+        self.port_counts = defaultdict(int)
+        self.connection_pairs = set()
+        self.bytes_analyzed = 0
+        self.packets_analyzed = 0
+        self.packet_history = []
+        
+    def _update_analytics(self, packet_info: Dict[str, Any]):
+        """Update statistical counters based on packet info.
+        
+        Args:
+            packet_info: The packet information dictionary
+        """
+        # Increment packet count
+        self.packets_analyzed += 1
+        
+        # Add packet length to byte count
+        if 'length' in packet_info:
+            self.bytes_analyzed += packet_info['length']
+            
+        # Update protocol counter
+        protocol = packet_info.get('protocol', 'UNKNOWN')
+        self.protocol_counts[protocol] += 1
+        
+        # Update IP counters
+        if 'src_ip' in packet_info:
+            self.ip_counts[packet_info['src_ip']] += 1
+            
+        if 'dst_ip' in packet_info:
+            self.dst_ip_counts[packet_info['dst_ip']] += 1
+            
+        # Update port counter
+        if 'dst_port' in packet_info:
+            self.port_counts[packet_info['dst_port']] += 1
+            
+    def _extract_packet_features(self, packet):
         """Extract useful information from a packet.
         
         Args:
@@ -600,7 +880,7 @@ class PacketAnalyzer:
         conn_tuple = (src_ip, dst_ip, dst_port, protocol)
         self.connection_pairs.add(conn_tuple)
         
-    def _update_statistics(self, packet_info: Dict[str, Any]):
+    def _update_analytics(self, packet_info: Dict[str, Any]):
         """Update statistical counters based on packet info.
         
         Args:
@@ -760,4 +1040,3910 @@ class PacketAnalyzer:
             logger.debug(f"Saved traffic snapshot for session {self.db_session_id}")
             
         except Exception as e:
-            logger.error(f"Error saving traffic snapshot: {e}") 
+            logger.error(f"Error saving traffic snapshot: {e}")
+        
+    def _handle_memory_pressure(self, level: MemoryPressureLevel):
+        """
+        Handle changes in memory pressure level.
+        
+        Args:
+            level: New memory pressure level
+        """
+        logger.info(f"Memory pressure changed to {level}, adjusting packet capture behavior")
+        
+        # Adjust buffer size based on memory pressure
+        new_buffer_size = max(10, self.memory_manager.get_max_buffer_size() // 10)
+        
+        # Log the change
+        logger.info(f"Adjusting packet buffer size from {self.buffer_size} to {new_buffer_size}")
+        
+        # Update buffer size
+        self.buffer_size = new_buffer_size
+        
+        # Trim history if pressure is high or critical
+        if level in (MemoryPressureLevel.HIGH, MemoryPressureLevel.CRITICAL):
+            self._trim_packet_history(aggressive=True)
+            
+        # Process any pending packets in buffer if high/critical pressure
+        if level in (MemoryPressureLevel.HIGH, MemoryPressureLevel.CRITICAL) and len(self.packet_buffer) > 0:
+            self._process_packet_buffer()
+
+        # Register the adaptive action
+        self.memory_manager.register_adaptive_action()
+        
+    def _trim_packet_history(self, aggressive=False):
+        """
+        Trim packet history to reduce memory usage.
+        
+        Args:
+            aggressive: If True, trim more aggressively
+        """
+        if not self.packet_history:
+            return
+            
+        current_size = len(self.packet_history)
+        
+        if aggressive:
+            # Keep only 25% of packets during high memory pressure
+            target_size = max(100, current_size // 4)
+        else:
+            # Keep 50% of packets during normal trim
+            target_size = max(100, current_size // 2)
+            
+        if current_size > target_size:
+            # Keep newest packets, discard oldest
+            self.packet_history = self.packet_history[-target_size:]
+            logger.info(f"Trimmed packet history from {current_size} to {len(self.packet_history)}")
+        
+    def get_memory_stats(self) -> Dict[str, Any]:
+        """
+        Get memory management statistics.
+        
+        Returns:
+            Dict containing memory statistics
+        """
+        mem_metrics = self.memory_manager.get_metrics()
+        optimizer_metrics = self.packet_optimizer.get_metrics()
+        
+        stats = {
+            "current_memory_usage": mem_metrics.get("current_memory_usage", 0),
+            "peak_memory_usage": mem_metrics.get("peak_memory_usage", 0),
+            "memory_pressure_level": mem_metrics.get("current_pressure_level", "LOW"),
+            "memory_checks": mem_metrics.get("memory_checks", 0),
+            "pressure_changes": mem_metrics.get("pressure_changes", 0),
+            "gc_invocations": mem_metrics.get("gc_invocations", 0),
+            "packets_dropped": mem_metrics.get("packets_dropped", 0) + self.mem_packets_dropped,
+            "packets_optimized": optimizer_metrics.get("packets_optimized", 0),
+            "bytes_saved": optimizer_metrics.get("bytes_saved", 0),
+            "payloads_truncated": optimizer_metrics.get("payloads_truncated", 0),
+            "buffer_size": self.buffer_size,
+            "max_buffer_size": self.memory_manager.get_max_buffer_size(),
+            "history_size": len(self.packet_history),
+            "ip_cache_size": optimizer_metrics.get("ip_cache_size", 0),
+            "mac_cache_size": optimizer_metrics.get("mac_cache_size", 0),
+            "current_strategy": {
+                "sampling_rate": self.memory_manager.get_current_strategy().get("sampling_rate", 1.0),
+                "max_payload_size": self.packet_optimizer.max_payload_size
+            },
+            "process_memory": mem_metrics.get("process_memory", {})
+        }
+        
+        return stats
+        
+    def _reset_statistics(self):
+        """Reset all statistical counters."""
+        self.protocol_counts = Counter()
+        self.ip_counts = defaultdict(int)
+        self.dst_ip_counts = defaultdict(int)
+        self.port_counts = defaultdict(int)
+        self.connection_pairs = set()
+        self.bytes_analyzed = 0
+        self.packets_analyzed = 0
+        self.packet_history = []
+        
+    def _send_status_update(self):
+        """Send a status update via the callback if registered."""
+        if not self.status_callback:
+            return
+            
+        current_time = datetime.now()
+        duration = (current_time - self.start_time).total_seconds()
+        packets_per_second = self.packets_analyzed / max(1, duration)
+        
+        status_message = (
+            f"Captured {self.packets_analyzed} packets "
+            f"({self.bytes_analyzed} bytes) in {duration:.1f} seconds "
+            f"({packets_per_second:.1f} packets/sec)"
+        )
+        
+        self.status_callback(True, status_message)
+        
+    def _get_default_interface(self) -> Optional[str]:
+        """Get the default network interface.
+        
+        Returns:
+            str: Interface name or None if unavailable
+        """
+        try:
+            # Get the default gateway interface
+            gateways = netifaces.gateways()
+            if 'default' in gateways and netifaces.AF_INET in gateways['default']:
+                _, interface = gateways['default'][netifaces.AF_INET]
+                return interface
+                
+            # If no default found, try to use the first non-loopback interface
+            for interface in netifaces.interfaces():
+                if interface != 'lo' and interface != 'localhost':
+                    addresses = netifaces.ifaddresses(interface)
+                    if netifaces.AF_INET in addresses:
+                        return interface
+                        
+        except Exception as e:
+            logger.error(f"Error determining default interface: {e}")
+            
+        return None 
+
+    def _maybe_save_traffic_snapshot(self) -> None:
+        """Save traffic snapshot if enough time has passed."""
+        if not self.db_session_id:
+            return
+            
+        now = datetime.now()
+        
+        # Initialize last snapshot time if needed
+        if self.stats['last_snapshot_time'] is None:
+            self.stats['last_snapshot_time'] = now
+            return
+            
+        # Check if it's time for a new snapshot (every 10 seconds)
+        time_since_last = (now - self.stats['last_snapshot_time']).total_seconds()
+        if time_since_last >= 10:
+            self._save_traffic_snapshot()
+            self.stats['last_snapshot_time'] = now
+    
+    def _save_traffic_snapshot(self) -> None:
+        """Save a traffic snapshot to the database."""
+        if not self.db_session_id:
+            return
+            
+        try:
+            # Get current statistics
+            stats = self.get_statistics()
+            
+            # Prepare protocol stats
+            protocol_stats = {}
+            for proto, count in self.protocol_counts.items():
+                protocol_stats[proto] = {
+                    'count': count,
+                    'bytes': self.bytes_analyzed
+                }
+                
+            # Add protocol stats to database
+            self.database.add_protocol_stats(
+                self.db_session_id,
+                datetime.now(),
+                protocol_stats
+            )
+            
+            # Prepare IP stats
+            ip_stats = {}
+            for ip, traffic in self.ip_counts.items():
+                ip_stats[ip] = {
+                    'sent_packets': traffic,
+                    'recv_packets': self.dst_ip_counts[ip],
+                    'sent_bytes': self.bytes_analyzed
+                }
+                
+            # Add IP stats to database
+            self.database.add_ip_stats(
+                self.db_session_id,
+                datetime.now(),
+                ip_stats
+            )
+            
+            # Add traffic snapshot
+            self.database.add_traffic_snapshot(
+                self.db_session_id,
+                datetime.now(),
+                stats['duration_seconds'],
+                stats['packets_analyzed'],
+                stats['bytes_analyzed'],
+                stats['packets_per_second'],
+                stats['bytes_per_second'],
+                {
+                    'top_source_ips': dict(Counter(self.ip_counts).most_common(10)),
+                    'top_destination_ips': dict(Counter(self.dst_ip_counts).most_common(10)),
+                    'tcp_ports': dict(Counter(self.port_counts).most_common(10)),
+                    'http_methods': dict(Counter(self.protocol_counts).most_common(10)),
+                    'dns_queries': dict(Counter(self.protocol_counts).most_common(10))
+                }
+            )
+            
+            logger.debug(f"Saved traffic snapshot for session {self.db_session_id}")
+            
+        except Exception as e:
+            logger.error(f"Error saving traffic snapshot: {e}")
+        
+    def _handle_memory_pressure(self, level: MemoryPressureLevel):
+        """
+        Handle changes in memory pressure level.
+        
+        Args:
+            level: New memory pressure level
+        """
+        logger.info(f"Memory pressure changed to {level}, adjusting packet capture behavior")
+        
+        # Adjust buffer size based on memory pressure
+        new_buffer_size = max(10, self.memory_manager.get_max_buffer_size() // 10)
+        
+        # Log the change
+        logger.info(f"Adjusting packet buffer size from {self.buffer_size} to {new_buffer_size}")
+        
+        # Update buffer size
+        self.buffer_size = new_buffer_size
+        
+        # Trim history if pressure is high or critical
+        if level in (MemoryPressureLevel.HIGH, MemoryPressureLevel.CRITICAL):
+            self._trim_packet_history(aggressive=True)
+            
+        # Process any pending packets in buffer if high/critical pressure
+        if level in (MemoryPressureLevel.HIGH, MemoryPressureLevel.CRITICAL) and len(self.packet_buffer) > 0:
+            self._process_packet_buffer()
+
+        # Register the adaptive action
+        self.memory_manager.register_adaptive_action()
+        
+    def _trim_packet_history(self, aggressive=False):
+        """
+        Trim packet history to reduce memory usage.
+        
+        Args:
+            aggressive: If True, trim more aggressively
+        """
+        if not self.packet_history:
+            return
+            
+        current_size = len(self.packet_history)
+        
+        if aggressive:
+            # Keep only 25% of packets during high memory pressure
+            target_size = max(100, current_size // 4)
+        else:
+            # Keep 50% of packets during normal trim
+            target_size = max(100, current_size // 2)
+            
+        if current_size > target_size:
+            # Keep newest packets, discard oldest
+            self.packet_history = self.packet_history[-target_size:]
+            logger.info(f"Trimmed packet history from {current_size} to {len(self.packet_history)}")
+        
+    def get_memory_stats(self) -> Dict[str, Any]:
+        """
+        Get memory management statistics.
+        
+        Returns:
+            Dict containing memory statistics
+        """
+        mem_metrics = self.memory_manager.get_metrics()
+        optimizer_metrics = self.packet_optimizer.get_metrics()
+        
+        stats = {
+            "current_memory_usage": mem_metrics.get("current_memory_usage", 0),
+            "peak_memory_usage": mem_metrics.get("peak_memory_usage", 0),
+            "memory_pressure_level": mem_metrics.get("current_pressure_level", "LOW"),
+            "memory_checks": mem_metrics.get("memory_checks", 0),
+            "pressure_changes": mem_metrics.get("pressure_changes", 0),
+            "gc_invocations": mem_metrics.get("gc_invocations", 0),
+            "packets_dropped": mem_metrics.get("packets_dropped", 0) + self.mem_packets_dropped,
+            "packets_optimized": optimizer_metrics.get("packets_optimized", 0),
+            "bytes_saved": optimizer_metrics.get("bytes_saved", 0),
+            "payloads_truncated": optimizer_metrics.get("payloads_truncated", 0),
+            "buffer_size": self.buffer_size,
+            "max_buffer_size": self.memory_manager.get_max_buffer_size(),
+            "history_size": len(self.packet_history),
+            "ip_cache_size": optimizer_metrics.get("ip_cache_size", 0),
+            "mac_cache_size": optimizer_metrics.get("mac_cache_size", 0),
+            "current_strategy": {
+                "sampling_rate": self.memory_manager.get_current_strategy().get("sampling_rate", 1.0),
+                "max_payload_size": self.packet_optimizer.max_payload_size
+            },
+            "process_memory": mem_metrics.get("process_memory", {})
+        }
+        
+        return stats
+        
+    def _reset_statistics(self):
+        """Reset all statistical counters."""
+        self.protocol_counts = Counter()
+        self.ip_counts = defaultdict(int)
+        self.dst_ip_counts = defaultdict(int)
+        self.port_counts = defaultdict(int)
+        self.connection_pairs = set()
+        self.bytes_analyzed = 0
+        self.packets_analyzed = 0
+        self.packet_history = []
+        
+    def _send_status_update(self):
+        """Send a status update via the callback if registered."""
+        if not self.status_callback:
+            return
+            
+        current_time = datetime.now()
+        duration = (current_time - self.start_time).total_seconds()
+        packets_per_second = self.packets_analyzed / max(1, duration)
+        
+        status_message = (
+            f"Captured {self.packets_analyzed} packets "
+            f"({self.bytes_analyzed} bytes) in {duration:.1f} seconds "
+            f"({packets_per_second:.1f} packets/sec)"
+        )
+        
+        self.status_callback(True, status_message)
+        
+    def _get_default_interface(self) -> Optional[str]:
+        """Get the default network interface.
+        
+        Returns:
+            str: Interface name or None if unavailable
+        """
+        try:
+            # Get the default gateway interface
+            gateways = netifaces.gateways()
+            if 'default' in gateways and netifaces.AF_INET in gateways['default']:
+                _, interface = gateways['default'][netifaces.AF_INET]
+                return interface
+                
+            # If no default found, try to use the first non-loopback interface
+            for interface in netifaces.interfaces():
+                if interface != 'lo' and interface != 'localhost':
+                    addresses = netifaces.ifaddresses(interface)
+                    if netifaces.AF_INET in addresses:
+                        return interface
+                        
+        except Exception as e:
+            logger.error(f"Error determining default interface: {e}")
+            
+        return None 
+
+    def _maybe_save_traffic_snapshot(self) -> None:
+        """Save traffic snapshot if enough time has passed."""
+        if not self.db_session_id:
+            return
+            
+        now = datetime.now()
+        
+        # Initialize last snapshot time if needed
+        if self.stats['last_snapshot_time'] is None:
+            self.stats['last_snapshot_time'] = now
+            return
+            
+        # Check if it's time for a new snapshot (every 10 seconds)
+        time_since_last = (now - self.stats['last_snapshot_time']).total_seconds()
+        if time_since_last >= 10:
+            self._save_traffic_snapshot()
+            self.stats['last_snapshot_time'] = now
+    
+    def _save_traffic_snapshot(self) -> None:
+        """Save a traffic snapshot to the database."""
+        if not self.db_session_id:
+            return
+            
+        try:
+            # Get current statistics
+            stats = self.get_statistics()
+            
+            # Prepare protocol stats
+            protocol_stats = {}
+            for proto, count in self.protocol_counts.items():
+                protocol_stats[proto] = {
+                    'count': count,
+                    'bytes': self.bytes_analyzed
+                }
+                
+            # Add protocol stats to database
+            self.database.add_protocol_stats(
+                self.db_session_id,
+                datetime.now(),
+                protocol_stats
+            )
+            
+            # Prepare IP stats
+            ip_stats = {}
+            for ip, traffic in self.ip_counts.items():
+                ip_stats[ip] = {
+                    'sent_packets': traffic,
+                    'recv_packets': self.dst_ip_counts[ip],
+                    'sent_bytes': self.bytes_analyzed
+                }
+                
+            # Add IP stats to database
+            self.database.add_ip_stats(
+                self.db_session_id,
+                datetime.now(),
+                ip_stats
+            )
+            
+            # Add traffic snapshot
+            self.database.add_traffic_snapshot(
+                self.db_session_id,
+                datetime.now(),
+                stats['duration_seconds'],
+                stats['packets_analyzed'],
+                stats['bytes_analyzed'],
+                stats['packets_per_second'],
+                stats['bytes_per_second'],
+                {
+                    'top_source_ips': dict(Counter(self.ip_counts).most_common(10)),
+                    'top_destination_ips': dict(Counter(self.dst_ip_counts).most_common(10)),
+                    'tcp_ports': dict(Counter(self.port_counts).most_common(10)),
+                    'http_methods': dict(Counter(self.protocol_counts).most_common(10)),
+                    'dns_queries': dict(Counter(self.protocol_counts).most_common(10))
+                }
+            )
+            
+            logger.debug(f"Saved traffic snapshot for session {self.db_session_id}")
+            
+        except Exception as e:
+            logger.error(f"Error saving traffic snapshot: {e}")
+        
+    def _handle_memory_pressure(self, level: MemoryPressureLevel):
+        """
+        Handle changes in memory pressure level.
+        
+        Args:
+            level: New memory pressure level
+        """
+        logger.info(f"Memory pressure changed to {level}, adjusting packet capture behavior")
+        
+        # Adjust buffer size based on memory pressure
+        new_buffer_size = max(10, self.memory_manager.get_max_buffer_size() // 10)
+        
+        # Log the change
+        logger.info(f"Adjusting packet buffer size from {self.buffer_size} to {new_buffer_size}")
+        
+        # Update buffer size
+        self.buffer_size = new_buffer_size
+        
+        # Trim history if pressure is high or critical
+        if level in (MemoryPressureLevel.HIGH, MemoryPressureLevel.CRITICAL):
+            self._trim_packet_history(aggressive=True)
+            
+        # Process any pending packets in buffer if high/critical pressure
+        if level in (MemoryPressureLevel.HIGH, MemoryPressureLevel.CRITICAL) and len(self.packet_buffer) > 0:
+            self._process_packet_buffer()
+
+        # Register the adaptive action
+        self.memory_manager.register_adaptive_action()
+        
+    def _trim_packet_history(self, aggressive=False):
+        """
+        Trim packet history to reduce memory usage.
+        
+        Args:
+            aggressive: If True, trim more aggressively
+        """
+        if not self.packet_history:
+            return
+            
+        current_size = len(self.packet_history)
+        
+        if aggressive:
+            # Keep only 25% of packets during high memory pressure
+            target_size = max(100, current_size // 4)
+        else:
+            # Keep 50% of packets during normal trim
+            target_size = max(100, current_size // 2)
+            
+        if current_size > target_size:
+            # Keep newest packets, discard oldest
+            self.packet_history = self.packet_history[-target_size:]
+            logger.info(f"Trimmed packet history from {current_size} to {len(self.packet_history)}")
+        
+    def get_memory_stats(self) -> Dict[str, Any]:
+        """
+        Get memory management statistics.
+        
+        Returns:
+            Dict containing memory statistics
+        """
+        mem_metrics = self.memory_manager.get_metrics()
+        optimizer_metrics = self.packet_optimizer.get_metrics()
+        
+        stats = {
+            "current_memory_usage": mem_metrics.get("current_memory_usage", 0),
+            "peak_memory_usage": mem_metrics.get("peak_memory_usage", 0),
+            "memory_pressure_level": mem_metrics.get("current_pressure_level", "LOW"),
+            "memory_checks": mem_metrics.get("memory_checks", 0),
+            "pressure_changes": mem_metrics.get("pressure_changes", 0),
+            "gc_invocations": mem_metrics.get("gc_invocations", 0),
+            "packets_dropped": mem_metrics.get("packets_dropped", 0) + self.mem_packets_dropped,
+            "packets_optimized": optimizer_metrics.get("packets_optimized", 0),
+            "bytes_saved": optimizer_metrics.get("bytes_saved", 0),
+            "payloads_truncated": optimizer_metrics.get("payloads_truncated", 0),
+            "buffer_size": self.buffer_size,
+            "max_buffer_size": self.memory_manager.get_max_buffer_size(),
+            "history_size": len(self.packet_history),
+            "ip_cache_size": optimizer_metrics.get("ip_cache_size", 0),
+            "mac_cache_size": optimizer_metrics.get("mac_cache_size", 0),
+            "current_strategy": {
+                "sampling_rate": self.memory_manager.get_current_strategy().get("sampling_rate", 1.0),
+                "max_payload_size": self.packet_optimizer.max_payload_size
+            },
+            "process_memory": mem_metrics.get("process_memory", {})
+        }
+        
+        return stats
+        
+    def _reset_statistics(self):
+        """Reset all statistical counters."""
+        self.protocol_counts = Counter()
+        self.ip_counts = defaultdict(int)
+        self.dst_ip_counts = defaultdict(int)
+        self.port_counts = defaultdict(int)
+        self.connection_pairs = set()
+        self.bytes_analyzed = 0
+        self.packets_analyzed = 0
+        self.packet_history = []
+        
+    def _send_status_update(self):
+        """Send a status update via the callback if registered."""
+        if not self.status_callback:
+            return
+            
+        current_time = datetime.now()
+        duration = (current_time - self.start_time).total_seconds()
+        packets_per_second = self.packets_analyzed / max(1, duration)
+        
+        status_message = (
+            f"Captured {self.packets_analyzed} packets "
+            f"({self.bytes_analyzed} bytes) in {duration:.1f} seconds "
+            f"({packets_per_second:.1f} packets/sec)"
+        )
+        
+        self.status_callback(True, status_message)
+        
+    def _get_default_interface(self) -> Optional[str]:
+        """Get the default network interface.
+        
+        Returns:
+            str: Interface name or None if unavailable
+        """
+        try:
+            # Get the default gateway interface
+            gateways = netifaces.gateways()
+            if 'default' in gateways and netifaces.AF_INET in gateways['default']:
+                _, interface = gateways['default'][netifaces.AF_INET]
+                return interface
+                
+            # If no default found, try to use the first non-loopback interface
+            for interface in netifaces.interfaces():
+                if interface != 'lo' and interface != 'localhost':
+                    addresses = netifaces.ifaddresses(interface)
+                    if netifaces.AF_INET in addresses:
+                        return interface
+                        
+        except Exception as e:
+            logger.error(f"Error determining default interface: {e}")
+            
+        return None 
+
+    def _maybe_save_traffic_snapshot(self) -> None:
+        """Save traffic snapshot if enough time has passed."""
+        if not self.db_session_id:
+            return
+            
+        now = datetime.now()
+        
+        # Initialize last snapshot time if needed
+        if self.stats['last_snapshot_time'] is None:
+            self.stats['last_snapshot_time'] = now
+            return
+            
+        # Check if it's time for a new snapshot (every 10 seconds)
+        time_since_last = (now - self.stats['last_snapshot_time']).total_seconds()
+        if time_since_last >= 10:
+            self._save_traffic_snapshot()
+            self.stats['last_snapshot_time'] = now
+    
+    def _save_traffic_snapshot(self) -> None:
+        """Save a traffic snapshot to the database."""
+        if not self.db_session_id:
+            return
+            
+        try:
+            # Get current statistics
+            stats = self.get_statistics()
+            
+            # Prepare protocol stats
+            protocol_stats = {}
+            for proto, count in self.protocol_counts.items():
+                protocol_stats[proto] = {
+                    'count': count,
+                    'bytes': self.bytes_analyzed
+                }
+                
+            # Add protocol stats to database
+            self.database.add_protocol_stats(
+                self.db_session_id,
+                datetime.now(),
+                protocol_stats
+            )
+            
+            # Prepare IP stats
+            ip_stats = {}
+            for ip, traffic in self.ip_counts.items():
+                ip_stats[ip] = {
+                    'sent_packets': traffic,
+                    'recv_packets': self.dst_ip_counts[ip],
+                    'sent_bytes': self.bytes_analyzed
+                }
+                
+            # Add IP stats to database
+            self.database.add_ip_stats(
+                self.db_session_id,
+                datetime.now(),
+                ip_stats
+            )
+            
+            # Add traffic snapshot
+            self.database.add_traffic_snapshot(
+                self.db_session_id,
+                datetime.now(),
+                stats['duration_seconds'],
+                stats['packets_analyzed'],
+                stats['bytes_analyzed'],
+                stats['packets_per_second'],
+                stats['bytes_per_second'],
+                {
+                    'top_source_ips': dict(Counter(self.ip_counts).most_common(10)),
+                    'top_destination_ips': dict(Counter(self.dst_ip_counts).most_common(10)),
+                    'tcp_ports': dict(Counter(self.port_counts).most_common(10)),
+                    'http_methods': dict(Counter(self.protocol_counts).most_common(10)),
+                    'dns_queries': dict(Counter(self.protocol_counts).most_common(10))
+                }
+            )
+            
+            logger.debug(f"Saved traffic snapshot for session {self.db_session_id}")
+            
+        except Exception as e:
+            logger.error(f"Error saving traffic snapshot: {e}")
+        
+    def _handle_memory_pressure(self, level: MemoryPressureLevel):
+        """
+        Handle changes in memory pressure level.
+        
+        Args:
+            level: New memory pressure level
+        """
+        logger.info(f"Memory pressure changed to {level}, adjusting packet capture behavior")
+        
+        # Adjust buffer size based on memory pressure
+        new_buffer_size = max(10, self.memory_manager.get_max_buffer_size() // 10)
+        
+        # Log the change
+        logger.info(f"Adjusting packet buffer size from {self.buffer_size} to {new_buffer_size}")
+        
+        # Update buffer size
+        self.buffer_size = new_buffer_size
+        
+        # Trim history if pressure is high or critical
+        if level in (MemoryPressureLevel.HIGH, MemoryPressureLevel.CRITICAL):
+            self._trim_packet_history(aggressive=True)
+            
+        # Process any pending packets in buffer if high/critical pressure
+        if level in (MemoryPressureLevel.HIGH, MemoryPressureLevel.CRITICAL) and len(self.packet_buffer) > 0:
+            self._process_packet_buffer()
+
+        # Register the adaptive action
+        self.memory_manager.register_adaptive_action()
+        
+    def _trim_packet_history(self, aggressive=False):
+        """
+        Trim packet history to reduce memory usage.
+        
+        Args:
+            aggressive: If True, trim more aggressively
+        """
+        if not self.packet_history:
+            return
+            
+        current_size = len(self.packet_history)
+        
+        if aggressive:
+            # Keep only 25% of packets during high memory pressure
+            target_size = max(100, current_size // 4)
+        else:
+            # Keep 50% of packets during normal trim
+            target_size = max(100, current_size // 2)
+            
+        if current_size > target_size:
+            # Keep newest packets, discard oldest
+            self.packet_history = self.packet_history[-target_size:]
+            logger.info(f"Trimmed packet history from {current_size} to {len(self.packet_history)}")
+        
+    def get_memory_stats(self) -> Dict[str, Any]:
+        """
+        Get memory management statistics.
+        
+        Returns:
+            Dict containing memory statistics
+        """
+        mem_metrics = self.memory_manager.get_metrics()
+        optimizer_metrics = self.packet_optimizer.get_metrics()
+        
+        stats = {
+            "current_memory_usage": mem_metrics.get("current_memory_usage", 0),
+            "peak_memory_usage": mem_metrics.get("peak_memory_usage", 0),
+            "memory_pressure_level": mem_metrics.get("current_pressure_level", "LOW"),
+            "memory_checks": mem_metrics.get("memory_checks", 0),
+            "pressure_changes": mem_metrics.get("pressure_changes", 0),
+            "gc_invocations": mem_metrics.get("gc_invocations", 0),
+            "packets_dropped": mem_metrics.get("packets_dropped", 0) + self.mem_packets_dropped,
+            "packets_optimized": optimizer_metrics.get("packets_optimized", 0),
+            "bytes_saved": optimizer_metrics.get("bytes_saved", 0),
+            "payloads_truncated": optimizer_metrics.get("payloads_truncated", 0),
+            "buffer_size": self.buffer_size,
+            "max_buffer_size": self.memory_manager.get_max_buffer_size(),
+            "history_size": len(self.packet_history),
+            "ip_cache_size": optimizer_metrics.get("ip_cache_size", 0),
+            "mac_cache_size": optimizer_metrics.get("mac_cache_size", 0),
+            "current_strategy": {
+                "sampling_rate": self.memory_manager.get_current_strategy().get("sampling_rate", 1.0),
+                "max_payload_size": self.packet_optimizer.max_payload_size
+            },
+            "process_memory": mem_metrics.get("process_memory", {})
+        }
+        
+        return stats
+        
+    def _reset_statistics(self):
+        """Reset all statistical counters."""
+        self.protocol_counts = Counter()
+        self.ip_counts = defaultdict(int)
+        self.dst_ip_counts = defaultdict(int)
+        self.port_counts = defaultdict(int)
+        self.connection_pairs = set()
+        self.bytes_analyzed = 0
+        self.packets_analyzed = 0
+        self.packet_history = []
+        
+    def _send_status_update(self):
+        """Send a status update via the callback if registered."""
+        if not self.status_callback:
+            return
+            
+        current_time = datetime.now()
+        duration = (current_time - self.start_time).total_seconds()
+        packets_per_second = self.packets_analyzed / max(1, duration)
+        
+        status_message = (
+            f"Captured {self.packets_analyzed} packets "
+            f"({self.bytes_analyzed} bytes) in {duration:.1f} seconds "
+            f"({packets_per_second:.1f} packets/sec)"
+        )
+        
+        self.status_callback(True, status_message)
+        
+    def _get_default_interface(self) -> Optional[str]:
+        """Get the default network interface.
+        
+        Returns:
+            str: Interface name or None if unavailable
+        """
+        try:
+            # Get the default gateway interface
+            gateways = netifaces.gateways()
+            if 'default' in gateways and netifaces.AF_INET in gateways['default']:
+                _, interface = gateways['default'][netifaces.AF_INET]
+                return interface
+                
+            # If no default found, try to use the first non-loopback interface
+            for interface in netifaces.interfaces():
+                if interface != 'lo' and interface != 'localhost':
+                    addresses = netifaces.ifaddresses(interface)
+                    if netifaces.AF_INET in addresses:
+                        return interface
+                        
+        except Exception as e:
+            logger.error(f"Error determining default interface: {e}")
+            
+        return None 
+
+    def _maybe_save_traffic_snapshot(self) -> None:
+        """Save traffic snapshot if enough time has passed."""
+        if not self.db_session_id:
+            return
+            
+        now = datetime.now()
+        
+        # Initialize last snapshot time if needed
+        if self.stats['last_snapshot_time'] is None:
+            self.stats['last_snapshot_time'] = now
+            return
+            
+        # Check if it's time for a new snapshot (every 10 seconds)
+        time_since_last = (now - self.stats['last_snapshot_time']).total_seconds()
+        if time_since_last >= 10:
+            self._save_traffic_snapshot()
+            self.stats['last_snapshot_time'] = now
+    
+    def _save_traffic_snapshot(self) -> None:
+        """Save a traffic snapshot to the database."""
+        if not self.db_session_id:
+            return
+            
+        try:
+            # Get current statistics
+            stats = self.get_statistics()
+            
+            # Prepare protocol stats
+            protocol_stats = {}
+            for proto, count in self.protocol_counts.items():
+                protocol_stats[proto] = {
+                    'count': count,
+                    'bytes': self.bytes_analyzed
+                }
+                
+            # Add protocol stats to database
+            self.database.add_protocol_stats(
+                self.db_session_id,
+                datetime.now(),
+                protocol_stats
+            )
+            
+            # Prepare IP stats
+            ip_stats = {}
+            for ip, traffic in self.ip_counts.items():
+                ip_stats[ip] = {
+                    'sent_packets': traffic,
+                    'recv_packets': self.dst_ip_counts[ip],
+                    'sent_bytes': self.bytes_analyzed
+                }
+                
+            # Add IP stats to database
+            self.database.add_ip_stats(
+                self.db_session_id,
+                datetime.now(),
+                ip_stats
+            )
+            
+            # Add traffic snapshot
+            self.database.add_traffic_snapshot(
+                self.db_session_id,
+                datetime.now(),
+                stats['duration_seconds'],
+                stats['packets_analyzed'],
+                stats['bytes_analyzed'],
+                stats['packets_per_second'],
+                stats['bytes_per_second'],
+                {
+                    'top_source_ips': dict(Counter(self.ip_counts).most_common(10)),
+                    'top_destination_ips': dict(Counter(self.dst_ip_counts).most_common(10)),
+                    'tcp_ports': dict(Counter(self.port_counts).most_common(10)),
+                    'http_methods': dict(Counter(self.protocol_counts).most_common(10)),
+                    'dns_queries': dict(Counter(self.protocol_counts).most_common(10))
+                }
+            )
+            
+            logger.debug(f"Saved traffic snapshot for session {self.db_session_id}")
+            
+        except Exception as e:
+            logger.error(f"Error saving traffic snapshot: {e}")
+        
+    def _handle_memory_pressure(self, level: MemoryPressureLevel):
+        """
+        Handle changes in memory pressure level.
+        
+        Args:
+            level: New memory pressure level
+        """
+        logger.info(f"Memory pressure changed to {level}, adjusting packet capture behavior")
+        
+        # Adjust buffer size based on memory pressure
+        new_buffer_size = max(10, self.memory_manager.get_max_buffer_size() // 10)
+        
+        # Log the change
+        logger.info(f"Adjusting packet buffer size from {self.buffer_size} to {new_buffer_size}")
+        
+        # Update buffer size
+        self.buffer_size = new_buffer_size
+        
+        # Trim history if pressure is high or critical
+        if level in (MemoryPressureLevel.HIGH, MemoryPressureLevel.CRITICAL):
+            self._trim_packet_history(aggressive=True)
+            
+        # Process any pending packets in buffer if high/critical pressure
+        if level in (MemoryPressureLevel.HIGH, MemoryPressureLevel.CRITICAL) and len(self.packet_buffer) > 0:
+            self._process_packet_buffer()
+
+        # Register the adaptive action
+        self.memory_manager.register_adaptive_action()
+        
+    def _trim_packet_history(self, aggressive=False):
+        """
+        Trim packet history to reduce memory usage.
+        
+        Args:
+            aggressive: If True, trim more aggressively
+        """
+        if not self.packet_history:
+            return
+            
+        current_size = len(self.packet_history)
+        
+        if aggressive:
+            # Keep only 25% of packets during high memory pressure
+            target_size = max(100, current_size // 4)
+        else:
+            # Keep 50% of packets during normal trim
+            target_size = max(100, current_size // 2)
+            
+        if current_size > target_size:
+            # Keep newest packets, discard oldest
+            self.packet_history = self.packet_history[-target_size:]
+            logger.info(f"Trimmed packet history from {current_size} to {len(self.packet_history)}")
+        
+    def get_memory_stats(self) -> Dict[str, Any]:
+        """
+        Get memory management statistics.
+        
+        Returns:
+            Dict containing memory statistics
+        """
+        mem_metrics = self.memory_manager.get_metrics()
+        optimizer_metrics = self.packet_optimizer.get_metrics()
+        
+        stats = {
+            "current_memory_usage": mem_metrics.get("current_memory_usage", 0),
+            "peak_memory_usage": mem_metrics.get("peak_memory_usage", 0),
+            "memory_pressure_level": mem_metrics.get("current_pressure_level", "LOW"),
+            "memory_checks": mem_metrics.get("memory_checks", 0),
+            "pressure_changes": mem_metrics.get("pressure_changes", 0),
+            "gc_invocations": mem_metrics.get("gc_invocations", 0),
+            "packets_dropped": mem_metrics.get("packets_dropped", 0) + self.mem_packets_dropped,
+            "packets_optimized": optimizer_metrics.get("packets_optimized", 0),
+            "bytes_saved": optimizer_metrics.get("bytes_saved", 0),
+            "payloads_truncated": optimizer_metrics.get("payloads_truncated", 0),
+            "buffer_size": self.buffer_size,
+            "max_buffer_size": self.memory_manager.get_max_buffer_size(),
+            "history_size": len(self.packet_history),
+            "ip_cache_size": optimizer_metrics.get("ip_cache_size", 0),
+            "mac_cache_size": optimizer_metrics.get("mac_cache_size", 0),
+            "current_strategy": {
+                "sampling_rate": self.memory_manager.get_current_strategy().get("sampling_rate", 1.0),
+                "max_payload_size": self.packet_optimizer.max_payload_size
+            },
+            "process_memory": mem_metrics.get("process_memory", {})
+        }
+        
+        return stats
+        
+    def _reset_statistics(self):
+        """Reset all statistical counters."""
+        self.protocol_counts = Counter()
+        self.ip_counts = defaultdict(int)
+        self.dst_ip_counts = defaultdict(int)
+        self.port_counts = defaultdict(int)
+        self.connection_pairs = set()
+        self.bytes_analyzed = 0
+        self.packets_analyzed = 0
+        self.packet_history = []
+        
+    def _send_status_update(self):
+        """Send a status update via the callback if registered."""
+        if not self.status_callback:
+            return
+            
+        current_time = datetime.now()
+        duration = (current_time - self.start_time).total_seconds()
+        packets_per_second = self.packets_analyzed / max(1, duration)
+        
+        status_message = (
+            f"Captured {self.packets_analyzed} packets "
+            f"({self.bytes_analyzed} bytes) in {duration:.1f} seconds "
+            f"({packets_per_second:.1f} packets/sec)"
+        )
+        
+        self.status_callback(True, status_message)
+        
+    def _get_default_interface(self) -> Optional[str]:
+        """Get the default network interface.
+        
+        Returns:
+            str: Interface name or None if unavailable
+        """
+        try:
+            # Get the default gateway interface
+            gateways = netifaces.gateways()
+            if 'default' in gateways and netifaces.AF_INET in gateways['default']:
+                _, interface = gateways['default'][netifaces.AF_INET]
+                return interface
+                
+            # If no default found, try to use the first non-loopback interface
+            for interface in netifaces.interfaces():
+                if interface != 'lo' and interface != 'localhost':
+                    addresses = netifaces.ifaddresses(interface)
+                    if netifaces.AF_INET in addresses:
+                        return interface
+                        
+        except Exception as e:
+            logger.error(f"Error determining default interface: {e}")
+            
+        return None 
+
+    def _maybe_save_traffic_snapshot(self) -> None:
+        """Save traffic snapshot if enough time has passed."""
+        if not self.db_session_id:
+            return
+            
+        now = datetime.now()
+        
+        # Initialize last snapshot time if needed
+        if self.stats['last_snapshot_time'] is None:
+            self.stats['last_snapshot_time'] = now
+            return
+            
+        # Check if it's time for a new snapshot (every 10 seconds)
+        time_since_last = (now - self.stats['last_snapshot_time']).total_seconds()
+        if time_since_last >= 10:
+            self._save_traffic_snapshot()
+            self.stats['last_snapshot_time'] = now
+    
+    def _save_traffic_snapshot(self) -> None:
+        """Save a traffic snapshot to the database."""
+        if not self.db_session_id:
+            return
+            
+        try:
+            # Get current statistics
+            stats = self.get_statistics()
+            
+            # Prepare protocol stats
+            protocol_stats = {}
+            for proto, count in self.protocol_counts.items():
+                protocol_stats[proto] = {
+                    'count': count,
+                    'bytes': self.bytes_analyzed
+                }
+                
+            # Add protocol stats to database
+            self.database.add_protocol_stats(
+                self.db_session_id,
+                datetime.now(),
+                protocol_stats
+            )
+            
+            # Prepare IP stats
+            ip_stats = {}
+            for ip, traffic in self.ip_counts.items():
+                ip_stats[ip] = {
+                    'sent_packets': traffic,
+                    'recv_packets': self.dst_ip_counts[ip],
+                    'sent_bytes': self.bytes_analyzed
+                }
+                
+            # Add IP stats to database
+            self.database.add_ip_stats(
+                self.db_session_id,
+                datetime.now(),
+                ip_stats
+            )
+            
+            # Add traffic snapshot
+            self.database.add_traffic_snapshot(
+                self.db_session_id,
+                datetime.now(),
+                stats['duration_seconds'],
+                stats['packets_analyzed'],
+                stats['bytes_analyzed'],
+                stats['packets_per_second'],
+                stats['bytes_per_second'],
+                {
+                    'top_source_ips': dict(Counter(self.ip_counts).most_common(10)),
+                    'top_destination_ips': dict(Counter(self.dst_ip_counts).most_common(10)),
+                    'tcp_ports': dict(Counter(self.port_counts).most_common(10)),
+                    'http_methods': dict(Counter(self.protocol_counts).most_common(10)),
+                    'dns_queries': dict(Counter(self.protocol_counts).most_common(10))
+                }
+            )
+            
+            logger.debug(f"Saved traffic snapshot for session {self.db_session_id}")
+            
+        except Exception as e:
+            logger.error(f"Error saving traffic snapshot: {e}")
+        
+    def _handle_memory_pressure(self, level: MemoryPressureLevel):
+        """
+        Handle changes in memory pressure level.
+        
+        Args:
+            level: New memory pressure level
+        """
+        logger.info(f"Memory pressure changed to {level}, adjusting packet capture behavior")
+        
+        # Adjust buffer size based on memory pressure
+        new_buffer_size = max(10, self.memory_manager.get_max_buffer_size() // 10)
+        
+        # Log the change
+        logger.info(f"Adjusting packet buffer size from {self.buffer_size} to {new_buffer_size}")
+        
+        # Update buffer size
+        self.buffer_size = new_buffer_size
+        
+        # Trim history if pressure is high or critical
+        if level in (MemoryPressureLevel.HIGH, MemoryPressureLevel.CRITICAL):
+            self._trim_packet_history(aggressive=True)
+            
+        # Process any pending packets in buffer if high/critical pressure
+        if level in (MemoryPressureLevel.HIGH, MemoryPressureLevel.CRITICAL) and len(self.packet_buffer) > 0:
+            self._process_packet_buffer()
+
+        # Register the adaptive action
+        self.memory_manager.register_adaptive_action()
+        
+    def _trim_packet_history(self, aggressive=False):
+        """
+        Trim packet history to reduce memory usage.
+        
+        Args:
+            aggressive: If True, trim more aggressively
+        """
+        if not self.packet_history:
+            return
+            
+        current_size = len(self.packet_history)
+        
+        if aggressive:
+            # Keep only 25% of packets during high memory pressure
+            target_size = max(100, current_size // 4)
+        else:
+            # Keep 50% of packets during normal trim
+            target_size = max(100, current_size // 2)
+            
+        if current_size > target_size:
+            # Keep newest packets, discard oldest
+            self.packet_history = self.packet_history[-target_size:]
+            logger.info(f"Trimmed packet history from {current_size} to {len(self.packet_history)}")
+        
+    def get_memory_stats(self) -> Dict[str, Any]:
+        """
+        Get memory management statistics.
+        
+        Returns:
+            Dict containing memory statistics
+        """
+        mem_metrics = self.memory_manager.get_metrics()
+        optimizer_metrics = self.packet_optimizer.get_metrics()
+        
+        stats = {
+            "current_memory_usage": mem_metrics.get("current_memory_usage", 0),
+            "peak_memory_usage": mem_metrics.get("peak_memory_usage", 0),
+            "memory_pressure_level": mem_metrics.get("current_pressure_level", "LOW"),
+            "memory_checks": mem_metrics.get("memory_checks", 0),
+            "pressure_changes": mem_metrics.get("pressure_changes", 0),
+            "gc_invocations": mem_metrics.get("gc_invocations", 0),
+            "packets_dropped": mem_metrics.get("packets_dropped", 0) + self.mem_packets_dropped,
+            "packets_optimized": optimizer_metrics.get("packets_optimized", 0),
+            "bytes_saved": optimizer_metrics.get("bytes_saved", 0),
+            "payloads_truncated": optimizer_metrics.get("payloads_truncated", 0),
+            "buffer_size": self.buffer_size,
+            "max_buffer_size": self.memory_manager.get_max_buffer_size(),
+            "history_size": len(self.packet_history),
+            "ip_cache_size": optimizer_metrics.get("ip_cache_size", 0),
+            "mac_cache_size": optimizer_metrics.get("mac_cache_size", 0),
+            "current_strategy": {
+                "sampling_rate": self.memory_manager.get_current_strategy().get("sampling_rate", 1.0),
+                "max_payload_size": self.packet_optimizer.max_payload_size
+            },
+            "process_memory": mem_metrics.get("process_memory", {})
+        }
+        
+        return stats
+        
+    def _reset_statistics(self):
+        """Reset all statistical counters."""
+        self.protocol_counts = Counter()
+        self.ip_counts = defaultdict(int)
+        self.dst_ip_counts = defaultdict(int)
+        self.port_counts = defaultdict(int)
+        self.connection_pairs = set()
+        self.bytes_analyzed = 0
+        self.packets_analyzed = 0
+        self.packet_history = []
+        
+    def _send_status_update(self):
+        """Send a status update via the callback if registered."""
+        if not self.status_callback:
+            return
+            
+        current_time = datetime.now()
+        duration = (current_time - self.start_time).total_seconds()
+        packets_per_second = self.packets_analyzed / max(1, duration)
+        
+        status_message = (
+            f"Captured {self.packets_analyzed} packets "
+            f"({self.bytes_analyzed} bytes) in {duration:.1f} seconds "
+            f"({packets_per_second:.1f} packets/sec)"
+        )
+        
+        self.status_callback(True, status_message)
+        
+    def _get_default_interface(self) -> Optional[str]:
+        """Get the default network interface.
+        
+        Returns:
+            str: Interface name or None if unavailable
+        """
+        try:
+            # Get the default gateway interface
+            gateways = netifaces.gateways()
+            if 'default' in gateways and netifaces.AF_INET in gateways['default']:
+                _, interface = gateways['default'][netifaces.AF_INET]
+                return interface
+                
+            # If no default found, try to use the first non-loopback interface
+            for interface in netifaces.interfaces():
+                if interface != 'lo' and interface != 'localhost':
+                    addresses = netifaces.ifaddresses(interface)
+                    if netifaces.AF_INET in addresses:
+                        return interface
+                        
+        except Exception as e:
+            logger.error(f"Error determining default interface: {e}")
+            
+        return None 
+
+    def _maybe_save_traffic_snapshot(self) -> None:
+        """Save traffic snapshot if enough time has passed."""
+        if not self.db_session_id:
+            return
+            
+        now = datetime.now()
+        
+        # Initialize last snapshot time if needed
+        if self.stats['last_snapshot_time'] is None:
+            self.stats['last_snapshot_time'] = now
+            return
+            
+        # Check if it's time for a new snapshot (every 10 seconds)
+        time_since_last = (now - self.stats['last_snapshot_time']).total_seconds()
+        if time_since_last >= 10:
+            self._save_traffic_snapshot()
+            self.stats['last_snapshot_time'] = now
+    
+    def _save_traffic_snapshot(self) -> None:
+        """Save a traffic snapshot to the database."""
+        if not self.db_session_id:
+            return
+            
+        try:
+            # Get current statistics
+            stats = self.get_statistics()
+            
+            # Prepare protocol stats
+            protocol_stats = {}
+            for proto, count in self.protocol_counts.items():
+                protocol_stats[proto] = {
+                    'count': count,
+                    'bytes': self.bytes_analyzed
+                }
+                
+            # Add protocol stats to database
+            self.database.add_protocol_stats(
+                self.db_session_id,
+                datetime.now(),
+                protocol_stats
+            )
+            
+            # Prepare IP stats
+            ip_stats = {}
+            for ip, traffic in self.ip_counts.items():
+                ip_stats[ip] = {
+                    'sent_packets': traffic,
+                    'recv_packets': self.dst_ip_counts[ip],
+                    'sent_bytes': self.bytes_analyzed
+                }
+                
+            # Add IP stats to database
+            self.database.add_ip_stats(
+                self.db_session_id,
+                datetime.now(),
+                ip_stats
+            )
+            
+            # Add traffic snapshot
+            self.database.add_traffic_snapshot(
+                self.db_session_id,
+                datetime.now(),
+                stats['duration_seconds'],
+                stats['packets_analyzed'],
+                stats['bytes_analyzed'],
+                stats['packets_per_second'],
+                stats['bytes_per_second'],
+                {
+                    'top_source_ips': dict(Counter(self.ip_counts).most_common(10)),
+                    'top_destination_ips': dict(Counter(self.dst_ip_counts).most_common(10)),
+                    'tcp_ports': dict(Counter(self.port_counts).most_common(10)),
+                    'http_methods': dict(Counter(self.protocol_counts).most_common(10)),
+                    'dns_queries': dict(Counter(self.protocol_counts).most_common(10))
+                }
+            )
+            
+            logger.debug(f"Saved traffic snapshot for session {self.db_session_id}")
+            
+        except Exception as e:
+            logger.error(f"Error saving traffic snapshot: {e}")
+        
+    def _handle_memory_pressure(self, level: MemoryPressureLevel):
+        """
+        Handle changes in memory pressure level.
+        
+        Args:
+            level: New memory pressure level
+        """
+        logger.info(f"Memory pressure changed to {level}, adjusting packet capture behavior")
+        
+        # Adjust buffer size based on memory pressure
+        new_buffer_size = max(10, self.memory_manager.get_max_buffer_size() // 10)
+        
+        # Log the change
+        logger.info(f"Adjusting packet buffer size from {self.buffer_size} to {new_buffer_size}")
+        
+        # Update buffer size
+        self.buffer_size = new_buffer_size
+        
+        # Trim history if pressure is high or critical
+        if level in (MemoryPressureLevel.HIGH, MemoryPressureLevel.CRITICAL):
+            self._trim_packet_history(aggressive=True)
+            
+        # Process any pending packets in buffer if high/critical pressure
+        if level in (MemoryPressureLevel.HIGH, MemoryPressureLevel.CRITICAL) and len(self.packet_buffer) > 0:
+            self._process_packet_buffer()
+
+        # Register the adaptive action
+        self.memory_manager.register_adaptive_action()
+        
+    def _trim_packet_history(self, aggressive=False):
+        """
+        Trim packet history to reduce memory usage.
+        
+        Args:
+            aggressive: If True, trim more aggressively
+        """
+        if not self.packet_history:
+            return
+            
+        current_size = len(self.packet_history)
+        
+        if aggressive:
+            # Keep only 25% of packets during high memory pressure
+            target_size = max(100, current_size // 4)
+        else:
+            # Keep 50% of packets during normal trim
+            target_size = max(100, current_size // 2)
+            
+        if current_size > target_size:
+            # Keep newest packets, discard oldest
+            self.packet_history = self.packet_history[-target_size:]
+            logger.info(f"Trimmed packet history from {current_size} to {len(self.packet_history)}")
+        
+    def get_memory_stats(self) -> Dict[str, Any]:
+        """
+        Get memory management statistics.
+        
+        Returns:
+            Dict containing memory statistics
+        """
+        mem_metrics = self.memory_manager.get_metrics()
+        optimizer_metrics = self.packet_optimizer.get_metrics()
+        
+        stats = {
+            "current_memory_usage": mem_metrics.get("current_memory_usage", 0),
+            "peak_memory_usage": mem_metrics.get("peak_memory_usage", 0),
+            "memory_pressure_level": mem_metrics.get("current_pressure_level", "LOW"),
+            "memory_checks": mem_metrics.get("memory_checks", 0),
+            "pressure_changes": mem_metrics.get("pressure_changes", 0),
+            "gc_invocations": mem_metrics.get("gc_invocations", 0),
+            "packets_dropped": mem_metrics.get("packets_dropped", 0) + self.mem_packets_dropped,
+            "packets_optimized": optimizer_metrics.get("packets_optimized", 0),
+            "bytes_saved": optimizer_metrics.get("bytes_saved", 0),
+            "payloads_truncated": optimizer_metrics.get("payloads_truncated", 0),
+            "buffer_size": self.buffer_size,
+            "max_buffer_size": self.memory_manager.get_max_buffer_size(),
+            "history_size": len(self.packet_history),
+            "ip_cache_size": optimizer_metrics.get("ip_cache_size", 0),
+            "mac_cache_size": optimizer_metrics.get("mac_cache_size", 0),
+            "current_strategy": {
+                "sampling_rate": self.memory_manager.get_current_strategy().get("sampling_rate", 1.0),
+                "max_payload_size": self.packet_optimizer.max_payload_size
+            },
+            "process_memory": mem_metrics.get("process_memory", {})
+        }
+        
+        return stats
+        
+    def _reset_statistics(self):
+        """Reset all statistical counters."""
+        self.protocol_counts = Counter()
+        self.ip_counts = defaultdict(int)
+        self.dst_ip_counts = defaultdict(int)
+        self.port_counts = defaultdict(int)
+        self.connection_pairs = set()
+        self.bytes_analyzed = 0
+        self.packets_analyzed = 0
+        self.packet_history = []
+        
+    def _send_status_update(self):
+        """Send a status update via the callback if registered."""
+        if not self.status_callback:
+            return
+            
+        current_time = datetime.now()
+        duration = (current_time - self.start_time).total_seconds()
+        packets_per_second = self.packets_analyzed / max(1, duration)
+        
+        status_message = (
+            f"Captured {self.packets_analyzed} packets "
+            f"({self.bytes_analyzed} bytes) in {duration:.1f} seconds "
+            f"({packets_per_second:.1f} packets/sec)"
+        )
+        
+        self.status_callback(True, status_message)
+        
+    def _get_default_interface(self) -> Optional[str]:
+        """Get the default network interface.
+        
+        Returns:
+            str: Interface name or None if unavailable
+        """
+        try:
+            # Get the default gateway interface
+            gateways = netifaces.gateways()
+            if 'default' in gateways and netifaces.AF_INET in gateways['default']:
+                _, interface = gateways['default'][netifaces.AF_INET]
+                return interface
+                
+            # If no default found, try to use the first non-loopback interface
+            for interface in netifaces.interfaces():
+                if interface != 'lo' and interface != 'localhost':
+                    addresses = netifaces.ifaddresses(interface)
+                    if netifaces.AF_INET in addresses:
+                        return interface
+                        
+        except Exception as e:
+            logger.error(f"Error determining default interface: {e}")
+            
+        return None 
+
+    def _maybe_save_traffic_snapshot(self) -> None:
+        """Save traffic snapshot if enough time has passed."""
+        if not self.db_session_id:
+            return
+            
+        now = datetime.now()
+        
+        # Initialize last snapshot time if needed
+        if self.stats['last_snapshot_time'] is None:
+            self.stats['last_snapshot_time'] = now
+            return
+            
+        # Check if it's time for a new snapshot (every 10 seconds)
+        time_since_last = (now - self.stats['last_snapshot_time']).total_seconds()
+        if time_since_last >= 10:
+            self._save_traffic_snapshot()
+            self.stats['last_snapshot_time'] = now
+    
+    def _save_traffic_snapshot(self) -> None:
+        """Save a traffic snapshot to the database."""
+        if not self.db_session_id:
+            return
+            
+        try:
+            # Get current statistics
+            stats = self.get_statistics()
+            
+            # Prepare protocol stats
+            protocol_stats = {}
+            for proto, count in self.protocol_counts.items():
+                protocol_stats[proto] = {
+                    'count': count,
+                    'bytes': self.bytes_analyzed
+                }
+                
+            # Add protocol stats to database
+            self.database.add_protocol_stats(
+                self.db_session_id,
+                datetime.now(),
+                protocol_stats
+            )
+            
+            # Prepare IP stats
+            ip_stats = {}
+            for ip, traffic in self.ip_counts.items():
+                ip_stats[ip] = {
+                    'sent_packets': traffic,
+                    'recv_packets': self.dst_ip_counts[ip],
+                    'sent_bytes': self.bytes_analyzed
+                }
+                
+            # Add IP stats to database
+            self.database.add_ip_stats(
+                self.db_session_id,
+                datetime.now(),
+                ip_stats
+            )
+            
+            # Add traffic snapshot
+            self.database.add_traffic_snapshot(
+                self.db_session_id,
+                datetime.now(),
+                stats['duration_seconds'],
+                stats['packets_analyzed'],
+                stats['bytes_analyzed'],
+                stats['packets_per_second'],
+                stats['bytes_per_second'],
+                {
+                    'top_source_ips': dict(Counter(self.ip_counts).most_common(10)),
+                    'top_destination_ips': dict(Counter(self.dst_ip_counts).most_common(10)),
+                    'tcp_ports': dict(Counter(self.port_counts).most_common(10)),
+                    'http_methods': dict(Counter(self.protocol_counts).most_common(10)),
+                    'dns_queries': dict(Counter(self.protocol_counts).most_common(10))
+                }
+            )
+            
+            logger.debug(f"Saved traffic snapshot for session {self.db_session_id}")
+            
+        except Exception as e:
+            logger.error(f"Error saving traffic snapshot: {e}")
+        
+    def _handle_memory_pressure(self, level: MemoryPressureLevel):
+        """
+        Handle changes in memory pressure level.
+        
+        Args:
+            level: New memory pressure level
+        """
+        logger.info(f"Memory pressure changed to {level}, adjusting packet capture behavior")
+        
+        # Adjust buffer size based on memory pressure
+        new_buffer_size = max(10, self.memory_manager.get_max_buffer_size() // 10)
+        
+        # Log the change
+        logger.info(f"Adjusting packet buffer size from {self.buffer_size} to {new_buffer_size}")
+        
+        # Update buffer size
+        self.buffer_size = new_buffer_size
+        
+        # Trim history if pressure is high or critical
+        if level in (MemoryPressureLevel.HIGH, MemoryPressureLevel.CRITICAL):
+            self._trim_packet_history(aggressive=True)
+            
+        # Process any pending packets in buffer if high/critical pressure
+        if level in (MemoryPressureLevel.HIGH, MemoryPressureLevel.CRITICAL) and len(self.packet_buffer) > 0:
+            self._process_packet_buffer()
+
+        # Register the adaptive action
+        self.memory_manager.register_adaptive_action()
+        
+    def _trim_packet_history(self, aggressive=False):
+        """
+        Trim packet history to reduce memory usage.
+        
+        Args:
+            aggressive: If True, trim more aggressively
+        """
+        if not self.packet_history:
+            return
+            
+        current_size = len(self.packet_history)
+        
+        if aggressive:
+            # Keep only 25% of packets during high memory pressure
+            target_size = max(100, current_size // 4)
+        else:
+            # Keep 50% of packets during normal trim
+            target_size = max(100, current_size // 2)
+            
+        if current_size > target_size:
+            # Keep newest packets, discard oldest
+            self.packet_history = self.packet_history[-target_size:]
+            logger.info(f"Trimmed packet history from {current_size} to {len(self.packet_history)}")
+        
+    def get_memory_stats(self) -> Dict[str, Any]:
+        """
+        Get memory management statistics.
+        
+        Returns:
+            Dict containing memory statistics
+        """
+        mem_metrics = self.memory_manager.get_metrics()
+        optimizer_metrics = self.packet_optimizer.get_metrics()
+        
+        stats = {
+            "current_memory_usage": mem_metrics.get("current_memory_usage", 0),
+            "peak_memory_usage": mem_metrics.get("peak_memory_usage", 0),
+            "memory_pressure_level": mem_metrics.get("current_pressure_level", "LOW"),
+            "memory_checks": mem_metrics.get("memory_checks", 0),
+            "pressure_changes": mem_metrics.get("pressure_changes", 0),
+            "gc_invocations": mem_metrics.get("gc_invocations", 0),
+            "packets_dropped": mem_metrics.get("packets_dropped", 0) + self.mem_packets_dropped,
+            "packets_optimized": optimizer_metrics.get("packets_optimized", 0),
+            "bytes_saved": optimizer_metrics.get("bytes_saved", 0),
+            "payloads_truncated": optimizer_metrics.get("payloads_truncated", 0),
+            "buffer_size": self.buffer_size,
+            "max_buffer_size": self.memory_manager.get_max_buffer_size(),
+            "history_size": len(self.packet_history),
+            "ip_cache_size": optimizer_metrics.get("ip_cache_size", 0),
+            "mac_cache_size": optimizer_metrics.get("mac_cache_size", 0),
+            "current_strategy": {
+                "sampling_rate": self.memory_manager.get_current_strategy().get("sampling_rate", 1.0),
+                "max_payload_size": self.packet_optimizer.max_payload_size
+            },
+            "process_memory": mem_metrics.get("process_memory", {})
+        }
+        
+        return stats
+        
+    def _reset_statistics(self):
+        """Reset all statistical counters."""
+        self.protocol_counts = Counter()
+        self.ip_counts = defaultdict(int)
+        self.dst_ip_counts = defaultdict(int)
+        self.port_counts = defaultdict(int)
+        self.connection_pairs = set()
+        self.bytes_analyzed = 0
+        self.packets_analyzed = 0
+        self.packet_history = []
+        
+    def _send_status_update(self):
+        """Send a status update via the callback if registered."""
+        if not self.status_callback:
+            return
+            
+        current_time = datetime.now()
+        duration = (current_time - self.start_time).total_seconds()
+        packets_per_second = self.packets_analyzed / max(1, duration)
+        
+        status_message = (
+            f"Captured {self.packets_analyzed} packets "
+            f"({self.bytes_analyzed} bytes) in {duration:.1f} seconds "
+            f"({packets_per_second:.1f} packets/sec)"
+        )
+        
+        self.status_callback(True, status_message)
+        
+    def _get_default_interface(self) -> Optional[str]:
+        """Get the default network interface.
+        
+        Returns:
+            str: Interface name or None if unavailable
+        """
+        try:
+            # Get the default gateway interface
+            gateways = netifaces.gateways()
+            if 'default' in gateways and netifaces.AF_INET in gateways['default']:
+                _, interface = gateways['default'][netifaces.AF_INET]
+                return interface
+                
+            # If no default found, try to use the first non-loopback interface
+            for interface in netifaces.interfaces():
+                if interface != 'lo' and interface != 'localhost':
+                    addresses = netifaces.ifaddresses(interface)
+                    if netifaces.AF_INET in addresses:
+                        return interface
+                        
+        except Exception as e:
+            logger.error(f"Error determining default interface: {e}")
+            
+        return None 
+
+    def _maybe_save_traffic_snapshot(self) -> None:
+        """Save traffic snapshot if enough time has passed."""
+        if not self.db_session_id:
+            return
+            
+        now = datetime.now()
+        
+        # Initialize last snapshot time if needed
+        if self.stats['last_snapshot_time'] is None:
+            self.stats['last_snapshot_time'] = now
+            return
+            
+        # Check if it's time for a new snapshot (every 10 seconds)
+        time_since_last = (now - self.stats['last_snapshot_time']).total_seconds()
+        if time_since_last >= 10:
+            self._save_traffic_snapshot()
+            self.stats['last_snapshot_time'] = now
+    
+    def _save_traffic_snapshot(self) -> None:
+        """Save a traffic snapshot to the database."""
+        if not self.db_session_id:
+            return
+            
+        try:
+            # Get current statistics
+            stats = self.get_statistics()
+            
+            # Prepare protocol stats
+            protocol_stats = {}
+            for proto, count in self.protocol_counts.items():
+                protocol_stats[proto] = {
+                    'count': count,
+                    'bytes': self.bytes_analyzed
+                }
+                
+            # Add protocol stats to database
+            self.database.add_protocol_stats(
+                self.db_session_id,
+                datetime.now(),
+                protocol_stats
+            )
+            
+            # Prepare IP stats
+            ip_stats = {}
+            for ip, traffic in self.ip_counts.items():
+                ip_stats[ip] = {
+                    'sent_packets': traffic,
+                    'recv_packets': self.dst_ip_counts[ip],
+                    'sent_bytes': self.bytes_analyzed
+                }
+                
+            # Add IP stats to database
+            self.database.add_ip_stats(
+                self.db_session_id,
+                datetime.now(),
+                ip_stats
+            )
+            
+            # Add traffic snapshot
+            self.database.add_traffic_snapshot(
+                self.db_session_id,
+                datetime.now(),
+                stats['duration_seconds'],
+                stats['packets_analyzed'],
+                stats['bytes_analyzed'],
+                stats['packets_per_second'],
+                stats['bytes_per_second'],
+                {
+                    'top_source_ips': dict(Counter(self.ip_counts).most_common(10)),
+                    'top_destination_ips': dict(Counter(self.dst_ip_counts).most_common(10)),
+                    'tcp_ports': dict(Counter(self.port_counts).most_common(10)),
+                    'http_methods': dict(Counter(self.protocol_counts).most_common(10)),
+                    'dns_queries': dict(Counter(self.protocol_counts).most_common(10))
+                }
+            )
+            
+            logger.debug(f"Saved traffic snapshot for session {self.db_session_id}")
+            
+        except Exception as e:
+            logger.error(f"Error saving traffic snapshot: {e}")
+        
+    def _handle_memory_pressure(self, level: MemoryPressureLevel):
+        """
+        Handle changes in memory pressure level.
+        
+        Args:
+            level: New memory pressure level
+        """
+        logger.info(f"Memory pressure changed to {level}, adjusting packet capture behavior")
+        
+        # Adjust buffer size based on memory pressure
+        new_buffer_size = max(10, self.memory_manager.get_max_buffer_size() // 10)
+        
+        # Log the change
+        logger.info(f"Adjusting packet buffer size from {self.buffer_size} to {new_buffer_size}")
+        
+        # Update buffer size
+        self.buffer_size = new_buffer_size
+        
+        # Trim history if pressure is high or critical
+        if level in (MemoryPressureLevel.HIGH, MemoryPressureLevel.CRITICAL):
+            self._trim_packet_history(aggressive=True)
+            
+        # Process any pending packets in buffer if high/critical pressure
+        if level in (MemoryPressureLevel.HIGH, MemoryPressureLevel.CRITICAL) and len(self.packet_buffer) > 0:
+            self._process_packet_buffer()
+
+        # Register the adaptive action
+        self.memory_manager.register_adaptive_action()
+        
+    def _trim_packet_history(self, aggressive=False):
+        """
+        Trim packet history to reduce memory usage.
+        
+        Args:
+            aggressive: If True, trim more aggressively
+        """
+        if not self.packet_history:
+            return
+            
+        current_size = len(self.packet_history)
+        
+        if aggressive:
+            # Keep only 25% of packets during high memory pressure
+            target_size = max(100, current_size // 4)
+        else:
+            # Keep 50% of packets during normal trim
+            target_size = max(100, current_size // 2)
+            
+        if current_size > target_size:
+            # Keep newest packets, discard oldest
+            self.packet_history = self.packet_history[-target_size:]
+            logger.info(f"Trimmed packet history from {current_size} to {len(self.packet_history)}")
+        
+    def get_memory_stats(self) -> Dict[str, Any]:
+        """
+        Get memory management statistics.
+        
+        Returns:
+            Dict containing memory statistics
+        """
+        mem_metrics = self.memory_manager.get_metrics()
+        optimizer_metrics = self.packet_optimizer.get_metrics()
+        
+        stats = {
+            "current_memory_usage": mem_metrics.get("current_memory_usage", 0),
+            "peak_memory_usage": mem_metrics.get("peak_memory_usage", 0),
+            "memory_pressure_level": mem_metrics.get("current_pressure_level", "LOW"),
+            "memory_checks": mem_metrics.get("memory_checks", 0),
+            "pressure_changes": mem_metrics.get("pressure_changes", 0),
+            "gc_invocations": mem_metrics.get("gc_invocations", 0),
+            "packets_dropped": mem_metrics.get("packets_dropped", 0) + self.mem_packets_dropped,
+            "packets_optimized": optimizer_metrics.get("packets_optimized", 0),
+            "bytes_saved": optimizer_metrics.get("bytes_saved", 0),
+            "payloads_truncated": optimizer_metrics.get("payloads_truncated", 0),
+            "buffer_size": self.buffer_size,
+            "max_buffer_size": self.memory_manager.get_max_buffer_size(),
+            "history_size": len(self.packet_history),
+            "ip_cache_size": optimizer_metrics.get("ip_cache_size", 0),
+            "mac_cache_size": optimizer_metrics.get("mac_cache_size", 0),
+            "current_strategy": {
+                "sampling_rate": self.memory_manager.get_current_strategy().get("sampling_rate", 1.0),
+                "max_payload_size": self.packet_optimizer.max_payload_size
+            },
+            "process_memory": mem_metrics.get("process_memory", {})
+        }
+        
+        return stats
+        
+    def _reset_statistics(self):
+        """Reset all statistical counters."""
+        self.protocol_counts = Counter()
+        self.ip_counts = defaultdict(int)
+        self.dst_ip_counts = defaultdict(int)
+        self.port_counts = defaultdict(int)
+        self.connection_pairs = set()
+        self.bytes_analyzed = 0
+        self.packets_analyzed = 0
+        self.packet_history = []
+        
+    def _send_status_update(self):
+        """Send a status update via the callback if registered."""
+        if not self.status_callback:
+            return
+            
+        current_time = datetime.now()
+        duration = (current_time - self.start_time).total_seconds()
+        packets_per_second = self.packets_analyzed / max(1, duration)
+        
+        status_message = (
+            f"Captured {self.packets_analyzed} packets "
+            f"({self.bytes_analyzed} bytes) in {duration:.1f} seconds "
+            f"({packets_per_second:.1f} packets/sec)"
+        )
+        
+        self.status_callback(True, status_message)
+        
+    def _get_default_interface(self) -> Optional[str]:
+        """Get the default network interface.
+        
+        Returns:
+            str: Interface name or None if unavailable
+        """
+        try:
+            # Get the default gateway interface
+            gateways = netifaces.gateways()
+            if 'default' in gateways and netifaces.AF_INET in gateways['default']:
+                _, interface = gateways['default'][netifaces.AF_INET]
+                return interface
+                
+            # If no default found, try to use the first non-loopback interface
+            for interface in netifaces.interfaces():
+                if interface != 'lo' and interface != 'localhost':
+                    addresses = netifaces.ifaddresses(interface)
+                    if netifaces.AF_INET in addresses:
+                        return interface
+                        
+        except Exception as e:
+            logger.error(f"Error determining default interface: {e}")
+            
+        return None 
+
+    def _maybe_save_traffic_snapshot(self) -> None:
+        """Save traffic snapshot if enough time has passed."""
+        if not self.db_session_id:
+            return
+            
+        now = datetime.now()
+        
+        # Initialize last snapshot time if needed
+        if self.stats['last_snapshot_time'] is None:
+            self.stats['last_snapshot_time'] = now
+            return
+            
+        # Check if it's time for a new snapshot (every 10 seconds)
+        time_since_last = (now - self.stats['last_snapshot_time']).total_seconds()
+        if time_since_last >= 10:
+            self._save_traffic_snapshot()
+            self.stats['last_snapshot_time'] = now
+    
+    def _save_traffic_snapshot(self) -> None:
+        """Save a traffic snapshot to the database."""
+        if not self.db_session_id:
+            return
+            
+        try:
+            # Get current statistics
+            stats = self.get_statistics()
+            
+            # Prepare protocol stats
+            protocol_stats = {}
+            for proto, count in self.protocol_counts.items():
+                protocol_stats[proto] = {
+                    'count': count,
+                    'bytes': self.bytes_analyzed
+                }
+                
+            # Add protocol stats to database
+            self.database.add_protocol_stats(
+                self.db_session_id,
+                datetime.now(),
+                protocol_stats
+            )
+            
+            # Prepare IP stats
+            ip_stats = {}
+            for ip, traffic in self.ip_counts.items():
+                ip_stats[ip] = {
+                    'sent_packets': traffic,
+                    'recv_packets': self.dst_ip_counts[ip],
+                    'sent_bytes': self.bytes_analyzed
+                }
+                
+            # Add IP stats to database
+            self.database.add_ip_stats(
+                self.db_session_id,
+                datetime.now(),
+                ip_stats
+            )
+            
+            # Add traffic snapshot
+            self.database.add_traffic_snapshot(
+                self.db_session_id,
+                datetime.now(),
+                stats['duration_seconds'],
+                stats['packets_analyzed'],
+                stats['bytes_analyzed'],
+                stats['packets_per_second'],
+                stats['bytes_per_second'],
+                {
+                    'top_source_ips': dict(Counter(self.ip_counts).most_common(10)),
+                    'top_destination_ips': dict(Counter(self.dst_ip_counts).most_common(10)),
+                    'tcp_ports': dict(Counter(self.port_counts).most_common(10)),
+                    'http_methods': dict(Counter(self.protocol_counts).most_common(10)),
+                    'dns_queries': dict(Counter(self.protocol_counts).most_common(10))
+                }
+            )
+            
+            logger.debug(f"Saved traffic snapshot for session {self.db_session_id}")
+            
+        except Exception as e:
+            logger.error(f"Error saving traffic snapshot: {e}")
+        
+    def _handle_memory_pressure(self, level: MemoryPressureLevel):
+        """
+        Handle changes in memory pressure level.
+        
+        Args:
+            level: New memory pressure level
+        """
+        logger.info(f"Memory pressure changed to {level}, adjusting packet capture behavior")
+        
+        # Adjust buffer size based on memory pressure
+        new_buffer_size = max(10, self.memory_manager.get_max_buffer_size() // 10)
+        
+        # Log the change
+        logger.info(f"Adjusting packet buffer size from {self.buffer_size} to {new_buffer_size}")
+        
+        # Update buffer size
+        self.buffer_size = new_buffer_size
+        
+        # Trim history if pressure is high or critical
+        if level in (MemoryPressureLevel.HIGH, MemoryPressureLevel.CRITICAL):
+            self._trim_packet_history(aggressive=True)
+            
+        # Process any pending packets in buffer if high/critical pressure
+        if level in (MemoryPressureLevel.HIGH, MemoryPressureLevel.CRITICAL) and len(self.packet_buffer) > 0:
+            self._process_packet_buffer()
+
+        # Register the adaptive action
+        self.memory_manager.register_adaptive_action()
+        
+    def _trim_packet_history(self, aggressive=False):
+        """
+        Trim packet history to reduce memory usage.
+        
+        Args:
+            aggressive: If True, trim more aggressively
+        """
+        if not self.packet_history:
+            return
+            
+        current_size = len(self.packet_history)
+        
+        if aggressive:
+            # Keep only 25% of packets during high memory pressure
+            target_size = max(100, current_size // 4)
+        else:
+            # Keep 50% of packets during normal trim
+            target_size = max(100, current_size // 2)
+            
+        if current_size > target_size:
+            # Keep newest packets, discard oldest
+            self.packet_history = self.packet_history[-target_size:]
+            logger.info(f"Trimmed packet history from {current_size} to {len(self.packet_history)}")
+        
+    def get_memory_stats(self) -> Dict[str, Any]:
+        """
+        Get memory management statistics.
+        
+        Returns:
+            Dict containing memory statistics
+        """
+        mem_metrics = self.memory_manager.get_metrics()
+        optimizer_metrics = self.packet_optimizer.get_metrics()
+        
+        stats = {
+            "current_memory_usage": mem_metrics.get("current_memory_usage", 0),
+            "peak_memory_usage": mem_metrics.get("peak_memory_usage", 0),
+            "memory_pressure_level": mem_metrics.get("current_pressure_level", "LOW"),
+            "memory_checks": mem_metrics.get("memory_checks", 0),
+            "pressure_changes": mem_metrics.get("pressure_changes", 0),
+            "gc_invocations": mem_metrics.get("gc_invocations", 0),
+            "packets_dropped": mem_metrics.get("packets_dropped", 0) + self.mem_packets_dropped,
+            "packets_optimized": optimizer_metrics.get("packets_optimized", 0),
+            "bytes_saved": optimizer_metrics.get("bytes_saved", 0),
+            "payloads_truncated": optimizer_metrics.get("payloads_truncated", 0),
+            "buffer_size": self.buffer_size,
+            "max_buffer_size": self.memory_manager.get_max_buffer_size(),
+            "history_size": len(self.packet_history),
+            "ip_cache_size": optimizer_metrics.get("ip_cache_size", 0),
+            "mac_cache_size": optimizer_metrics.get("mac_cache_size", 0),
+            "current_strategy": {
+                "sampling_rate": self.memory_manager.get_current_strategy().get("sampling_rate", 1.0),
+                "max_payload_size": self.packet_optimizer.max_payload_size
+            },
+            "process_memory": mem_metrics.get("process_memory", {})
+        }
+        
+        return stats
+        
+    def _reset_statistics(self):
+        """Reset all statistical counters."""
+        self.protocol_counts = Counter()
+        self.ip_counts = defaultdict(int)
+        self.dst_ip_counts = defaultdict(int)
+        self.port_counts = defaultdict(int)
+        self.connection_pairs = set()
+        self.bytes_analyzed = 0
+        self.packets_analyzed = 0
+        self.packet_history = []
+        
+    def _send_status_update(self):
+        """Send a status update via the callback if registered."""
+        if not self.status_callback:
+            return
+            
+        current_time = datetime.now()
+        duration = (current_time - self.start_time).total_seconds()
+        packets_per_second = self.packets_analyzed / max(1, duration)
+        
+        status_message = (
+            f"Captured {self.packets_analyzed} packets "
+            f"({self.bytes_analyzed} bytes) in {duration:.1f} seconds "
+            f"({packets_per_second:.1f} packets/sec)"
+        )
+        
+        self.status_callback(True, status_message)
+        
+    def _get_default_interface(self) -> Optional[str]:
+        """Get the default network interface.
+        
+        Returns:
+            str: Interface name or None if unavailable
+        """
+        try:
+            # Get the default gateway interface
+            gateways = netifaces.gateways()
+            if 'default' in gateways and netifaces.AF_INET in gateways['default']:
+                _, interface = gateways['default'][netifaces.AF_INET]
+                return interface
+                
+            # If no default found, try to use the first non-loopback interface
+            for interface in netifaces.interfaces():
+                if interface != 'lo' and interface != 'localhost':
+                    addresses = netifaces.ifaddresses(interface)
+                    if netifaces.AF_INET in addresses:
+                        return interface
+                        
+        except Exception as e:
+            logger.error(f"Error determining default interface: {e}")
+            
+        return None 
+
+    def _maybe_save_traffic_snapshot(self) -> None:
+        """Save traffic snapshot if enough time has passed."""
+        if not self.db_session_id:
+            return
+            
+        now = datetime.now()
+        
+        # Initialize last snapshot time if needed
+        if self.stats['last_snapshot_time'] is None:
+            self.stats['last_snapshot_time'] = now
+            return
+            
+        # Check if it's time for a new snapshot (every 10 seconds)
+        time_since_last = (now - self.stats['last_snapshot_time']).total_seconds()
+        if time_since_last >= 10:
+            self._save_traffic_snapshot()
+            self.stats['last_snapshot_time'] = now
+    
+    def _save_traffic_snapshot(self) -> None:
+        """Save a traffic snapshot to the database."""
+        if not self.db_session_id:
+            return
+            
+        try:
+            # Get current statistics
+            stats = self.get_statistics()
+            
+            # Prepare protocol stats
+            protocol_stats = {}
+            for proto, count in self.protocol_counts.items():
+                protocol_stats[proto] = {
+                    'count': count,
+                    'bytes': self.bytes_analyzed
+                }
+                
+            # Add protocol stats to database
+            self.database.add_protocol_stats(
+                self.db_session_id,
+                datetime.now(),
+                protocol_stats
+            )
+            
+            # Prepare IP stats
+            ip_stats = {}
+            for ip, traffic in self.ip_counts.items():
+                ip_stats[ip] = {
+                    'sent_packets': traffic,
+                    'recv_packets': self.dst_ip_counts[ip],
+                    'sent_bytes': self.bytes_analyzed
+                }
+                
+            # Add IP stats to database
+            self.database.add_ip_stats(
+                self.db_session_id,
+                datetime.now(),
+                ip_stats
+            )
+            
+            # Add traffic snapshot
+            self.database.add_traffic_snapshot(
+                self.db_session_id,
+                datetime.now(),
+                stats['duration_seconds'],
+                stats['packets_analyzed'],
+                stats['bytes_analyzed'],
+                stats['packets_per_second'],
+                stats['bytes_per_second'],
+                {
+                    'top_source_ips': dict(Counter(self.ip_counts).most_common(10)),
+                    'top_destination_ips': dict(Counter(self.dst_ip_counts).most_common(10)),
+                    'tcp_ports': dict(Counter(self.port_counts).most_common(10)),
+                    'http_methods': dict(Counter(self.protocol_counts).most_common(10)),
+                    'dns_queries': dict(Counter(self.protocol_counts).most_common(10))
+                }
+            )
+            
+            logger.debug(f"Saved traffic snapshot for session {self.db_session_id}")
+            
+        except Exception as e:
+            logger.error(f"Error saving traffic snapshot: {e}")
+        
+    def _handle_memory_pressure(self, level: MemoryPressureLevel):
+        """
+        Handle changes in memory pressure level.
+        
+        Args:
+            level: New memory pressure level
+        """
+        logger.info(f"Memory pressure changed to {level}, adjusting packet capture behavior")
+        
+        # Adjust buffer size based on memory pressure
+        new_buffer_size = max(10, self.memory_manager.get_max_buffer_size() // 10)
+        
+        # Log the change
+        logger.info(f"Adjusting packet buffer size from {self.buffer_size} to {new_buffer_size}")
+        
+        # Update buffer size
+        self.buffer_size = new_buffer_size
+        
+        # Trim history if pressure is high or critical
+        if level in (MemoryPressureLevel.HIGH, MemoryPressureLevel.CRITICAL):
+            self._trim_packet_history(aggressive=True)
+            
+        # Process any pending packets in buffer if high/critical pressure
+        if level in (MemoryPressureLevel.HIGH, MemoryPressureLevel.CRITICAL) and len(self.packet_buffer) > 0:
+            self._process_packet_buffer()
+
+        # Register the adaptive action
+        self.memory_manager.register_adaptive_action()
+        
+    def _trim_packet_history(self, aggressive=False):
+        """
+        Trim packet history to reduce memory usage.
+        
+        Args:
+            aggressive: If True, trim more aggressively
+        """
+        if not self.packet_history:
+            return
+            
+        current_size = len(self.packet_history)
+        
+        if aggressive:
+            # Keep only 25% of packets during high memory pressure
+            target_size = max(100, current_size // 4)
+        else:
+            # Keep 50% of packets during normal trim
+            target_size = max(100, current_size // 2)
+            
+        if current_size > target_size:
+            # Keep newest packets, discard oldest
+            self.packet_history = self.packet_history[-target_size:]
+            logger.info(f"Trimmed packet history from {current_size} to {len(self.packet_history)}")
+        
+    def get_memory_stats(self) -> Dict[str, Any]:
+        """
+        Get memory management statistics.
+        
+        Returns:
+            Dict containing memory statistics
+        """
+        mem_metrics = self.memory_manager.get_metrics()
+        optimizer_metrics = self.packet_optimizer.get_metrics()
+        
+        stats = {
+            "current_memory_usage": mem_metrics.get("current_memory_usage", 0),
+            "peak_memory_usage": mem_metrics.get("peak_memory_usage", 0),
+            "memory_pressure_level": mem_metrics.get("current_pressure_level", "LOW"),
+            "memory_checks": mem_metrics.get("memory_checks", 0),
+            "pressure_changes": mem_metrics.get("pressure_changes", 0),
+            "gc_invocations": mem_metrics.get("gc_invocations", 0),
+            "packets_dropped": mem_metrics.get("packets_dropped", 0) + self.mem_packets_dropped,
+            "packets_optimized": optimizer_metrics.get("packets_optimized", 0),
+            "bytes_saved": optimizer_metrics.get("bytes_saved", 0),
+            "payloads_truncated": optimizer_metrics.get("payloads_truncated", 0),
+            "buffer_size": self.buffer_size,
+            "max_buffer_size": self.memory_manager.get_max_buffer_size(),
+            "history_size": len(self.packet_history),
+            "ip_cache_size": optimizer_metrics.get("ip_cache_size", 0),
+            "mac_cache_size": optimizer_metrics.get("mac_cache_size", 0),
+            "current_strategy": {
+                "sampling_rate": self.memory_manager.get_current_strategy().get("sampling_rate", 1.0),
+                "max_payload_size": self.packet_optimizer.max_payload_size
+            },
+            "process_memory": mem_metrics.get("process_memory", {})
+        }
+        
+        return stats
+        
+    def _reset_statistics(self):
+        """Reset all statistical counters."""
+        self.protocol_counts = Counter()
+        self.ip_counts = defaultdict(int)
+        self.dst_ip_counts = defaultdict(int)
+        self.port_counts = defaultdict(int)
+        self.connection_pairs = set()
+        self.bytes_analyzed = 0
+        self.packets_analyzed = 0
+        self.packet_history = []
+        
+    def _send_status_update(self):
+        """Send a status update via the callback if registered."""
+        if not self.status_callback:
+            return
+            
+        current_time = datetime.now()
+        duration = (current_time - self.start_time).total_seconds()
+        packets_per_second = self.packets_analyzed / max(1, duration)
+        
+        status_message = (
+            f"Captured {self.packets_analyzed} packets "
+            f"({self.bytes_analyzed} bytes) in {duration:.1f} seconds "
+            f"({packets_per_second:.1f} packets/sec)"
+        )
+        
+        self.status_callback(True, status_message)
+        
+    def _get_default_interface(self) -> Optional[str]:
+        """Get the default network interface.
+        
+        Returns:
+            str: Interface name or None if unavailable
+        """
+        try:
+            # Get the default gateway interface
+            gateways = netifaces.gateways()
+            if 'default' in gateways and netifaces.AF_INET in gateways['default']:
+                _, interface = gateways['default'][netifaces.AF_INET]
+                return interface
+                
+            # If no default found, try to use the first non-loopback interface
+            for interface in netifaces.interfaces():
+                if interface != 'lo' and interface != 'localhost':
+                    addresses = netifaces.ifaddresses(interface)
+                    if netifaces.AF_INET in addresses:
+                        return interface
+                        
+        except Exception as e:
+            logger.error(f"Error determining default interface: {e}")
+            
+        return None 
+
+    def _maybe_save_traffic_snapshot(self) -> None:
+        """Save traffic snapshot if enough time has passed."""
+        if not self.db_session_id:
+            return
+            
+        now = datetime.now()
+        
+        # Initialize last snapshot time if needed
+        if self.stats['last_snapshot_time'] is None:
+            self.stats['last_snapshot_time'] = now
+            return
+            
+        # Check if it's time for a new snapshot (every 10 seconds)
+        time_since_last = (now - self.stats['last_snapshot_time']).total_seconds()
+        if time_since_last >= 10:
+            self._save_traffic_snapshot()
+            self.stats['last_snapshot_time'] = now
+    
+    def _save_traffic_snapshot(self) -> None:
+        """Save a traffic snapshot to the database."""
+        if not self.db_session_id:
+            return
+            
+        try:
+            # Get current statistics
+            stats = self.get_statistics()
+            
+            # Prepare protocol stats
+            protocol_stats = {}
+            for proto, count in self.protocol_counts.items():
+                protocol_stats[proto] = {
+                    'count': count,
+                    'bytes': self.bytes_analyzed
+                }
+                
+            # Add protocol stats to database
+            self.database.add_protocol_stats(
+                self.db_session_id,
+                datetime.now(),
+                protocol_stats
+            )
+            
+            # Prepare IP stats
+            ip_stats = {}
+            for ip, traffic in self.ip_counts.items():
+                ip_stats[ip] = {
+                    'sent_packets': traffic,
+                    'recv_packets': self.dst_ip_counts[ip],
+                    'sent_bytes': self.bytes_analyzed
+                }
+                
+            # Add IP stats to database
+            self.database.add_ip_stats(
+                self.db_session_id,
+                datetime.now(),
+                ip_stats
+            )
+            
+            # Add traffic snapshot
+            self.database.add_traffic_snapshot(
+                self.db_session_id,
+                datetime.now(),
+                stats['duration_seconds'],
+                stats['packets_analyzed'],
+                stats['bytes_analyzed'],
+                stats['packets_per_second'],
+                stats['bytes_per_second'],
+                {
+                    'top_source_ips': dict(Counter(self.ip_counts).most_common(10)),
+                    'top_destination_ips': dict(Counter(self.dst_ip_counts).most_common(10)),
+                    'tcp_ports': dict(Counter(self.port_counts).most_common(10)),
+                    'http_methods': dict(Counter(self.protocol_counts).most_common(10)),
+                    'dns_queries': dict(Counter(self.protocol_counts).most_common(10))
+                }
+            )
+            
+            logger.debug(f"Saved traffic snapshot for session {self.db_session_id}")
+            
+        except Exception as e:
+            logger.error(f"Error saving traffic snapshot: {e}")
+        
+    def _handle_memory_pressure(self, level: MemoryPressureLevel):
+        """
+        Handle changes in memory pressure level.
+        
+        Args:
+            level: New memory pressure level
+        """
+        logger.info(f"Memory pressure changed to {level}, adjusting packet capture behavior")
+        
+        # Adjust buffer size based on memory pressure
+        new_buffer_size = max(10, self.memory_manager.get_max_buffer_size() // 10)
+        
+        # Log the change
+        logger.info(f"Adjusting packet buffer size from {self.buffer_size} to {new_buffer_size}")
+        
+        # Update buffer size
+        self.buffer_size = new_buffer_size
+        
+        # Trim history if pressure is high or critical
+        if level in (MemoryPressureLevel.HIGH, MemoryPressureLevel.CRITICAL):
+            self._trim_packet_history(aggressive=True)
+            
+        # Process any pending packets in buffer if high/critical pressure
+        if level in (MemoryPressureLevel.HIGH, MemoryPressureLevel.CRITICAL) and len(self.packet_buffer) > 0:
+            self._process_packet_buffer()
+
+        # Register the adaptive action
+        self.memory_manager.register_adaptive_action()
+        
+    def _trim_packet_history(self, aggressive=False):
+        """
+        Trim packet history to reduce memory usage.
+        
+        Args:
+            aggressive: If True, trim more aggressively
+        """
+        if not self.packet_history:
+            return
+            
+        current_size = len(self.packet_history)
+        
+        if aggressive:
+            # Keep only 25% of packets during high memory pressure
+            target_size = max(100, current_size // 4)
+        else:
+            # Keep 50% of packets during normal trim
+            target_size = max(100, current_size // 2)
+            
+        if current_size > target_size:
+            # Keep newest packets, discard oldest
+            self.packet_history = self.packet_history[-target_size:]
+            logger.info(f"Trimmed packet history from {current_size} to {len(self.packet_history)}")
+        
+    def get_memory_stats(self) -> Dict[str, Any]:
+        """
+        Get memory management statistics.
+        
+        Returns:
+            Dict containing memory statistics
+        """
+        mem_metrics = self.memory_manager.get_metrics()
+        optimizer_metrics = self.packet_optimizer.get_metrics()
+        
+        stats = {
+            "current_memory_usage": mem_metrics.get("current_memory_usage", 0),
+            "peak_memory_usage": mem_metrics.get("peak_memory_usage", 0),
+            "memory_pressure_level": mem_metrics.get("current_pressure_level", "LOW"),
+            "memory_checks": mem_metrics.get("memory_checks", 0),
+            "pressure_changes": mem_metrics.get("pressure_changes", 0),
+            "gc_invocations": mem_metrics.get("gc_invocations", 0),
+            "packets_dropped": mem_metrics.get("packets_dropped", 0) + self.mem_packets_dropped,
+            "packets_optimized": optimizer_metrics.get("packets_optimized", 0),
+            "bytes_saved": optimizer_metrics.get("bytes_saved", 0),
+            "payloads_truncated": optimizer_metrics.get("payloads_truncated", 0),
+            "buffer_size": self.buffer_size,
+            "max_buffer_size": self.memory_manager.get_max_buffer_size(),
+            "history_size": len(self.packet_history),
+            "ip_cache_size": optimizer_metrics.get("ip_cache_size", 0),
+            "mac_cache_size": optimizer_metrics.get("mac_cache_size", 0),
+            "current_strategy": {
+                "sampling_rate": self.memory_manager.get_current_strategy().get("sampling_rate", 1.0),
+                "max_payload_size": self.packet_optimizer.max_payload_size
+            },
+            "process_memory": mem_metrics.get("process_memory", {})
+        }
+        
+        return stats
+        
+    def _reset_statistics(self):
+        """Reset all statistical counters."""
+        self.protocol_counts = Counter()
+        self.ip_counts = defaultdict(int)
+        self.dst_ip_counts = defaultdict(int)
+        self.port_counts = defaultdict(int)
+        self.connection_pairs = set()
+        self.bytes_analyzed = 0
+        self.packets_analyzed = 0
+        self.packet_history = []
+        
+    def _send_status_update(self):
+        """Send a status update via the callback if registered."""
+        if not self.status_callback:
+            return
+            
+        current_time = datetime.now()
+        duration = (current_time - self.start_time).total_seconds()
+        packets_per_second = self.packets_analyzed / max(1, duration)
+        
+        status_message = (
+            f"Captured {self.packets_analyzed} packets "
+            f"({self.bytes_analyzed} bytes) in {duration:.1f} seconds "
+            f"({packets_per_second:.1f} packets/sec)"
+        )
+        
+        self.status_callback(True, status_message)
+        
+    def _get_default_interface(self) -> Optional[str]:
+        """Get the default network interface.
+        
+        Returns:
+            str: Interface name or None if unavailable
+        """
+        try:
+            # Get the default gateway interface
+            gateways = netifaces.gateways()
+            if 'default' in gateways and netifaces.AF_INET in gateways['default']:
+                _, interface = gateways['default'][netifaces.AF_INET]
+                return interface
+                
+            # If no default found, try to use the first non-loopback interface
+            for interface in netifaces.interfaces():
+                if interface != 'lo' and interface != 'localhost':
+                    addresses = netifaces.ifaddresses(interface)
+                    if netifaces.AF_INET in addresses:
+                        return interface
+                        
+        except Exception as e:
+            logger.error(f"Error determining default interface: {e}")
+            
+        return None 
+
+    def _maybe_save_traffic_snapshot(self) -> None:
+        """Save traffic snapshot if enough time has passed."""
+        if not self.db_session_id:
+            return
+            
+        now = datetime.now()
+        
+        # Initialize last snapshot time if needed
+        if self.stats['last_snapshot_time'] is None:
+            self.stats['last_snapshot_time'] = now
+            return
+            
+        # Check if it's time for a new snapshot (every 10 seconds)
+        time_since_last = (now - self.stats['last_snapshot_time']).total_seconds()
+        if time_since_last >= 10:
+            self._save_traffic_snapshot()
+            self.stats['last_snapshot_time'] = now
+    
+    def _save_traffic_snapshot(self) -> None:
+        """Save a traffic snapshot to the database."""
+        if not self.db_session_id:
+            return
+            
+        try:
+            # Get current statistics
+            stats = self.get_statistics()
+            
+            # Prepare protocol stats
+            protocol_stats = {}
+            for proto, count in self.protocol_counts.items():
+                protocol_stats[proto] = {
+                    'count': count,
+                    'bytes': self.bytes_analyzed
+                }
+                
+            # Add protocol stats to database
+            self.database.add_protocol_stats(
+                self.db_session_id,
+                datetime.now(),
+                protocol_stats
+            )
+            
+            # Prepare IP stats
+            ip_stats = {}
+            for ip, traffic in self.ip_counts.items():
+                ip_stats[ip] = {
+                    'sent_packets': traffic,
+                    'recv_packets': self.dst_ip_counts[ip],
+                    'sent_bytes': self.bytes_analyzed
+                }
+                
+            # Add IP stats to database
+            self.database.add_ip_stats(
+                self.db_session_id,
+                datetime.now(),
+                ip_stats
+            )
+            
+            # Add traffic snapshot
+            self.database.add_traffic_snapshot(
+                self.db_session_id,
+                datetime.now(),
+                stats['duration_seconds'],
+                stats['packets_analyzed'],
+                stats['bytes_analyzed'],
+                stats['packets_per_second'],
+                stats['bytes_per_second'],
+                {
+                    'top_source_ips': dict(Counter(self.ip_counts).most_common(10)),
+                    'top_destination_ips': dict(Counter(self.dst_ip_counts).most_common(10)),
+                    'tcp_ports': dict(Counter(self.port_counts).most_common(10)),
+                    'http_methods': dict(Counter(self.protocol_counts).most_common(10)),
+                    'dns_queries': dict(Counter(self.protocol_counts).most_common(10))
+                }
+            )
+            
+            logger.debug(f"Saved traffic snapshot for session {self.db_session_id}")
+            
+        except Exception as e:
+            logger.error(f"Error saving traffic snapshot: {e}")
+        
+    def _handle_memory_pressure(self, level: MemoryPressureLevel):
+        """
+        Handle changes in memory pressure level.
+        
+        Args:
+            level: New memory pressure level
+        """
+        logger.info(f"Memory pressure changed to {level}, adjusting packet capture behavior")
+        
+        # Adjust buffer size based on memory pressure
+        new_buffer_size = max(10, self.memory_manager.get_max_buffer_size() // 10)
+        
+        # Log the change
+        logger.info(f"Adjusting packet buffer size from {self.buffer_size} to {new_buffer_size}")
+        
+        # Update buffer size
+        self.buffer_size = new_buffer_size
+        
+        # Trim history if pressure is high or critical
+        if level in (MemoryPressureLevel.HIGH, MemoryPressureLevel.CRITICAL):
+            self._trim_packet_history(aggressive=True)
+            
+        # Process any pending packets in buffer if high/critical pressure
+        if level in (MemoryPressureLevel.HIGH, MemoryPressureLevel.CRITICAL) and len(self.packet_buffer) > 0:
+            self._process_packet_buffer()
+
+        # Register the adaptive action
+        self.memory_manager.register_adaptive_action()
+        
+    def _trim_packet_history(self, aggressive=False):
+        """
+        Trim packet history to reduce memory usage.
+        
+        Args:
+            aggressive: If True, trim more aggressively
+        """
+        if not self.packet_history:
+            return
+            
+        current_size = len(self.packet_history)
+        
+        if aggressive:
+            # Keep only 25% of packets during high memory pressure
+            target_size = max(100, current_size // 4)
+        else:
+            # Keep 50% of packets during normal trim
+            target_size = max(100, current_size // 2)
+            
+        if current_size > target_size:
+            # Keep newest packets, discard oldest
+            self.packet_history = self.packet_history[-target_size:]
+            logger.info(f"Trimmed packet history from {current_size} to {len(self.packet_history)}")
+        
+    def get_memory_stats(self) -> Dict[str, Any]:
+        """
+        Get memory management statistics.
+        
+        Returns:
+            Dict containing memory statistics
+        """
+        mem_metrics = self.memory_manager.get_metrics()
+        optimizer_metrics = self.packet_optimizer.get_metrics()
+        
+        stats = {
+            "current_memory_usage": mem_metrics.get("current_memory_usage", 0),
+            "peak_memory_usage": mem_metrics.get("peak_memory_usage", 0),
+            "memory_pressure_level": mem_metrics.get("current_pressure_level", "LOW"),
+            "memory_checks": mem_metrics.get("memory_checks", 0),
+            "pressure_changes": mem_metrics.get("pressure_changes", 0),
+            "gc_invocations": mem_metrics.get("gc_invocations", 0),
+            "packets_dropped": mem_metrics.get("packets_dropped", 0) + self.mem_packets_dropped,
+            "packets_optimized": optimizer_metrics.get("packets_optimized", 0),
+            "bytes_saved": optimizer_metrics.get("bytes_saved", 0),
+            "payloads_truncated": optimizer_metrics.get("payloads_truncated", 0),
+            "buffer_size": self.buffer_size,
+            "max_buffer_size": self.memory_manager.get_max_buffer_size(),
+            "history_size": len(self.packet_history),
+            "ip_cache_size": optimizer_metrics.get("ip_cache_size", 0),
+            "mac_cache_size": optimizer_metrics.get("mac_cache_size", 0),
+            "current_strategy": {
+                "sampling_rate": self.memory_manager.get_current_strategy().get("sampling_rate", 1.0),
+                "max_payload_size": self.packet_optimizer.max_payload_size
+            },
+            "process_memory": mem_metrics.get("process_memory", {})
+        }
+        
+        return stats
+        
+    def _reset_statistics(self):
+        """Reset all statistical counters."""
+        self.protocol_counts = Counter()
+        self.ip_counts = defaultdict(int)
+        self.dst_ip_counts = defaultdict(int)
+        self.port_counts = defaultdict(int)
+        self.connection_pairs = set()
+        self.bytes_analyzed = 0
+        self.packets_analyzed = 0
+        self.packet_history = []
+        
+    def _send_status_update(self):
+        """Send a status update via the callback if registered."""
+        if not self.status_callback:
+            return
+            
+        current_time = datetime.now()
+        duration = (current_time - self.start_time).total_seconds()
+        packets_per_second = self.packets_analyzed / max(1, duration)
+        
+        status_message = (
+            f"Captured {self.packets_analyzed} packets "
+            f"({self.bytes_analyzed} bytes) in {duration:.1f} seconds "
+            f"({packets_per_second:.1f} packets/sec)"
+        )
+        
+        self.status_callback(True, status_message)
+        
+    def _get_default_interface(self) -> Optional[str]:
+        """Get the default network interface.
+        
+        Returns:
+            str: Interface name or None if unavailable
+        """
+        try:
+            # Get the default gateway interface
+            gateways = netifaces.gateways()
+            if 'default' in gateways and netifaces.AF_INET in gateways['default']:
+                _, interface = gateways['default'][netifaces.AF_INET]
+                return interface
+                
+            # If no default found, try to use the first non-loopback interface
+            for interface in netifaces.interfaces():
+                if interface != 'lo' and interface != 'localhost':
+                    addresses = netifaces.ifaddresses(interface)
+                    if netifaces.AF_INET in addresses:
+                        return interface
+                        
+        except Exception as e:
+            logger.error(f"Error determining default interface: {e}")
+            
+        return None 
+
+    def _maybe_save_traffic_snapshot(self) -> None:
+        """Save traffic snapshot if enough time has passed."""
+        if not self.db_session_id:
+            return
+            
+        now = datetime.now()
+        
+        # Initialize last snapshot time if needed
+        if self.stats['last_snapshot_time'] is None:
+            self.stats['last_snapshot_time'] = now
+            return
+            
+        # Check if it's time for a new snapshot (every 10 seconds)
+        time_since_last = (now - self.stats['last_snapshot_time']).total_seconds()
+        if time_since_last >= 10:
+            self._save_traffic_snapshot()
+            self.stats['last_snapshot_time'] = now
+    
+    def _save_traffic_snapshot(self) -> None:
+        """Save a traffic snapshot to the database."""
+        if not self.db_session_id:
+            return
+            
+        try:
+            # Get current statistics
+            stats = self.get_statistics()
+            
+            # Prepare protocol stats
+            protocol_stats = {}
+            for proto, count in self.protocol_counts.items():
+                protocol_stats[proto] = {
+                    'count': count,
+                    'bytes': self.bytes_analyzed
+                }
+                
+            # Add protocol stats to database
+            self.database.add_protocol_stats(
+                self.db_session_id,
+                datetime.now(),
+                protocol_stats
+            )
+            
+            # Prepare IP stats
+            ip_stats = {}
+            for ip, traffic in self.ip_counts.items():
+                ip_stats[ip] = {
+                    'sent_packets': traffic,
+                    'recv_packets': self.dst_ip_counts[ip],
+                    'sent_bytes': self.bytes_analyzed
+                }
+                
+            # Add IP stats to database
+            self.database.add_ip_stats(
+                self.db_session_id,
+                datetime.now(),
+                ip_stats
+            )
+            
+            # Add traffic snapshot
+            self.database.add_traffic_snapshot(
+                self.db_session_id,
+                datetime.now(),
+                stats['duration_seconds'],
+                stats['packets_analyzed'],
+                stats['bytes_analyzed'],
+                stats['packets_per_second'],
+                stats['bytes_per_second'],
+                {
+                    'top_source_ips': dict(Counter(self.ip_counts).most_common(10)),
+                    'top_destination_ips': dict(Counter(self.dst_ip_counts).most_common(10)),
+                    'tcp_ports': dict(Counter(self.port_counts).most_common(10)),
+                    'http_methods': dict(Counter(self.protocol_counts).most_common(10)),
+                    'dns_queries': dict(Counter(self.protocol_counts).most_common(10))
+                }
+            )
+            
+            logger.debug(f"Saved traffic snapshot for session {self.db_session_id}")
+            
+        except Exception as e:
+            logger.error(f"Error saving traffic snapshot: {e}")
+        
+    def _handle_memory_pressure(self, level: MemoryPressureLevel):
+        """
+        Handle changes in memory pressure level.
+        
+        Args:
+            level: New memory pressure level
+        """
+        logger.info(f"Memory pressure changed to {level}, adjusting packet capture behavior")
+        
+        # Adjust buffer size based on memory pressure
+        new_buffer_size = max(10, self.memory_manager.get_max_buffer_size() // 10)
+        
+        # Log the change
+        logger.info(f"Adjusting packet buffer size from {self.buffer_size} to {new_buffer_size}")
+        
+        # Update buffer size
+        self.buffer_size = new_buffer_size
+        
+        # Trim history if pressure is high or critical
+        if level in (MemoryPressureLevel.HIGH, MemoryPressureLevel.CRITICAL):
+            self._trim_packet_history(aggressive=True)
+            
+        # Process any pending packets in buffer if high/critical pressure
+        if level in (MemoryPressureLevel.HIGH, MemoryPressureLevel.CRITICAL) and len(self.packet_buffer) > 0:
+            self._process_packet_buffer()
+
+        # Register the adaptive action
+        self.memory_manager.register_adaptive_action()
+        
+    def _trim_packet_history(self, aggressive=False):
+        """
+        Trim packet history to reduce memory usage.
+        
+        Args:
+            aggressive: If True, trim more aggressively
+        """
+        if not self.packet_history:
+            return
+            
+        current_size = len(self.packet_history)
+        
+        if aggressive:
+            # Keep only 25% of packets during high memory pressure
+            target_size = max(100, current_size // 4)
+        else:
+            # Keep 50% of packets during normal trim
+            target_size = max(100, current_size // 2)
+            
+        if current_size > target_size:
+            # Keep newest packets, discard oldest
+            self.packet_history = self.packet_history[-target_size:]
+            logger.info(f"Trimmed packet history from {current_size} to {len(self.packet_history)}")
+        
+    def get_memory_stats(self) -> Dict[str, Any]:
+        """
+        Get memory management statistics.
+        
+        Returns:
+            Dict containing memory statistics
+        """
+        mem_metrics = self.memory_manager.get_metrics()
+        optimizer_metrics = self.packet_optimizer.get_metrics()
+        
+        stats = {
+            "current_memory_usage": mem_metrics.get("current_memory_usage", 0),
+            "peak_memory_usage": mem_metrics.get("peak_memory_usage", 0),
+            "memory_pressure_level": mem_metrics.get("current_pressure_level", "LOW"),
+            "memory_checks": mem_metrics.get("memory_checks", 0),
+            "pressure_changes": mem_metrics.get("pressure_changes", 0),
+            "gc_invocations": mem_metrics.get("gc_invocations", 0),
+            "packets_dropped": mem_metrics.get("packets_dropped", 0) + self.mem_packets_dropped,
+            "packets_optimized": optimizer_metrics.get("packets_optimized", 0),
+            "bytes_saved": optimizer_metrics.get("bytes_saved", 0),
+            "payloads_truncated": optimizer_metrics.get("payloads_truncated", 0),
+            "buffer_size": self.buffer_size,
+            "max_buffer_size": self.memory_manager.get_max_buffer_size(),
+            "history_size": len(self.packet_history),
+            "ip_cache_size": optimizer_metrics.get("ip_cache_size", 0),
+            "mac_cache_size": optimizer_metrics.get("mac_cache_size", 0),
+            "current_strategy": {
+                "sampling_rate": self.memory_manager.get_current_strategy().get("sampling_rate", 1.0),
+                "max_payload_size": self.packet_optimizer.max_payload_size
+            },
+            "process_memory": mem_metrics.get("process_memory", {})
+        }
+        
+        return stats
+        
+    def _reset_statistics(self):
+        """Reset all statistical counters."""
+        self.protocol_counts = Counter()
+        self.ip_counts = defaultdict(int)
+        self.dst_ip_counts = defaultdict(int)
+        self.port_counts = defaultdict(int)
+        self.connection_pairs = set()
+        self.bytes_analyzed = 0
+        self.packets_analyzed = 0
+        self.packet_history = []
+        
+    def _send_status_update(self):
+        """Send a status update via the callback if registered."""
+        if not self.status_callback:
+            return
+            
+        current_time = datetime.now()
+        duration = (current_time - self.start_time).total_seconds()
+        packets_per_second = self.packets_analyzed / max(1, duration)
+        
+        status_message = (
+            f"Captured {self.packets_analyzed} packets "
+            f"({self.bytes_analyzed} bytes) in {duration:.1f} seconds "
+            f"({packets_per_second:.1f} packets/sec)"
+        )
+        
+        self.status_callback(True, status_message)
+        
+    def _get_default_interface(self) -> Optional[str]:
+        """Get the default network interface.
+        
+        Returns:
+            str: Interface name or None if unavailable
+        """
+        try:
+            # Get the default gateway interface
+            gateways = netifaces.gateways()
+            if 'default' in gateways and netifaces.AF_INET in gateways['default']:
+                _, interface = gateways['default'][netifaces.AF_INET]
+                return interface
+                
+            # If no default found, try to use the first non-loopback interface
+            for interface in netifaces.interfaces():
+                if interface != 'lo' and interface != 'localhost':
+                    addresses = netifaces.ifaddresses(interface)
+                    if netifaces.AF_INET in addresses:
+                        return interface
+                        
+        except Exception as e:
+            logger.error(f"Error determining default interface: {e}")
+            
+        return None 
+
+    def _maybe_save_traffic_snapshot(self) -> None:
+        """Save traffic snapshot if enough time has passed."""
+        if not self.db_session_id:
+            return
+            
+        now = datetime.now()
+        
+        # Initialize last snapshot time if needed
+        if self.stats['last_snapshot_time'] is None:
+            self.stats['last_snapshot_time'] = now
+            return
+            
+        # Check if it's time for a new snapshot (every 10 seconds)
+        time_since_last = (now - self.stats['last_snapshot_time']).total_seconds()
+        if time_since_last >= 10:
+            self._save_traffic_snapshot()
+            self.stats['last_snapshot_time'] = now
+    
+    def _save_traffic_snapshot(self) -> None:
+        """Save a traffic snapshot to the database."""
+        if not self.db_session_id:
+            return
+            
+        try:
+            # Get current statistics
+            stats = self.get_statistics()
+            
+            # Prepare protocol stats
+            protocol_stats = {}
+            for proto, count in self.protocol_counts.items():
+                protocol_stats[proto] = {
+                    'count': count,
+                    'bytes': self.bytes_analyzed
+                }
+                
+            # Add protocol stats to database
+            self.database.add_protocol_stats(
+                self.db_session_id,
+                datetime.now(),
+                protocol_stats
+            )
+            
+            # Prepare IP stats
+            ip_stats = {}
+            for ip, traffic in self.ip_counts.items():
+                ip_stats[ip] = {
+                    'sent_packets': traffic,
+                    'recv_packets': self.dst_ip_counts[ip],
+                    'sent_bytes': self.bytes_analyzed
+                }
+                
+            # Add IP stats to database
+            self.database.add_ip_stats(
+                self.db_session_id,
+                datetime.now(),
+                ip_stats
+            )
+            
+            # Add traffic snapshot
+            self.database.add_traffic_snapshot(
+                self.db_session_id,
+                datetime.now(),
+                stats['duration_seconds'],
+                stats['packets_analyzed'],
+                stats['bytes_analyzed'],
+                stats['packets_per_second'],
+                stats['bytes_per_second'],
+                {
+                    'top_source_ips': dict(Counter(self.ip_counts).most_common(10)),
+                    'top_destination_ips': dict(Counter(self.dst_ip_counts).most_common(10)),
+                    'tcp_ports': dict(Counter(self.port_counts).most_common(10)),
+                    'http_methods': dict(Counter(self.protocol_counts).most_common(10)),
+                    'dns_queries': dict(Counter(self.protocol_counts).most_common(10))
+                }
+            )
+            
+            logger.debug(f"Saved traffic snapshot for session {self.db_session_id}")
+            
+        except Exception as e:
+            logger.error(f"Error saving traffic snapshot: {e}")
+        
+    def _handle_memory_pressure(self, level: MemoryPressureLevel):
+        """
+        Handle changes in memory pressure level.
+        
+        Args:
+            level: New memory pressure level
+        """
+        logger.info(f"Memory pressure changed to {level}, adjusting packet capture behavior")
+        
+        # Adjust buffer size based on memory pressure
+        new_buffer_size = max(10, self.memory_manager.get_max_buffer_size() // 10)
+        
+        # Log the change
+        logger.info(f"Adjusting packet buffer size from {self.buffer_size} to {new_buffer_size}")
+        
+        # Update buffer size
+        self.buffer_size = new_buffer_size
+        
+        # Trim history if pressure is high or critical
+        if level in (MemoryPressureLevel.HIGH, MemoryPressureLevel.CRITICAL):
+            self._trim_packet_history(aggressive=True)
+            
+        # Process any pending packets in buffer if high/critical pressure
+        if level in (MemoryPressureLevel.HIGH, MemoryPressureLevel.CRITICAL) and len(self.packet_buffer) > 0:
+            self._process_packet_buffer()
+
+        # Register the adaptive action
+        self.memory_manager.register_adaptive_action()
+        
+    def _trim_packet_history(self, aggressive=False):
+        """
+        Trim packet history to reduce memory usage.
+        
+        Args:
+            aggressive: If True, trim more aggressively
+        """
+        if not self.packet_history:
+            return
+            
+        current_size = len(self.packet_history)
+        
+        if aggressive:
+            # Keep only 25% of packets during high memory pressure
+            target_size = max(100, current_size // 4)
+        else:
+            # Keep 50% of packets during normal trim
+            target_size = max(100, current_size // 2)
+            
+        if current_size > target_size:
+            # Keep newest packets, discard oldest
+            self.packet_history = self.packet_history[-target_size:]
+            logger.info(f"Trimmed packet history from {current_size} to {len(self.packet_history)}")
+        
+    def get_memory_stats(self) -> Dict[str, Any]:
+        """
+        Get memory management statistics.
+        
+        Returns:
+            Dict containing memory statistics
+        """
+        mem_metrics = self.memory_manager.get_metrics()
+        optimizer_metrics = self.packet_optimizer.get_metrics()
+        
+        stats = {
+            "current_memory_usage": mem_metrics.get("current_memory_usage", 0),
+            "peak_memory_usage": mem_metrics.get("peak_memory_usage", 0),
+            "memory_pressure_level": mem_metrics.get("current_pressure_level", "LOW"),
+            "memory_checks": mem_metrics.get("memory_checks", 0),
+            "pressure_changes": mem_metrics.get("pressure_changes", 0),
+            "gc_invocations": mem_metrics.get("gc_invocations", 0),
+            "packets_dropped": mem_metrics.get("packets_dropped", 0) + self.mem_packets_dropped,
+            "packets_optimized": optimizer_metrics.get("packets_optimized", 0),
+            "bytes_saved": optimizer_metrics.get("bytes_saved", 0),
+            "payloads_truncated": optimizer_metrics.get("payloads_truncated", 0),
+            "buffer_size": self.buffer_size,
+            "max_buffer_size": self.memory_manager.get_max_buffer_size(),
+            "history_size": len(self.packet_history),
+            "ip_cache_size": optimizer_metrics.get("ip_cache_size", 0),
+            "mac_cache_size": optimizer_metrics.get("mac_cache_size", 0),
+            "current_strategy": {
+                "sampling_rate": self.memory_manager.get_current_strategy().get("sampling_rate", 1.0),
+                "max_payload_size": self.packet_optimizer.max_payload_size
+            },
+            "process_memory": mem_metrics.get("process_memory", {})
+        }
+        
+        return stats
+        
+    def _reset_statistics(self):
+        """Reset all statistical counters."""
+        self.protocol_counts = Counter()
+        self.ip_counts = defaultdict(int)
+        self.dst_ip_counts = defaultdict(int)
+        self.port_counts = defaultdict(int)
+        self.connection_pairs = set()
+        self.bytes_analyzed = 0
+        self.packets_analyzed = 0
+        self.packet_history = []
+        
+    def _send_status_update(self):
+        """Send a status update via the callback if registered."""
+        if not self.status_callback:
+            return
+            
+        current_time = datetime.now()
+        duration = (current_time - self.start_time).total_seconds()
+        packets_per_second = self.packets_analyzed / max(1, duration)
+        
+        status_message = (
+            f"Captured {self.packets_analyzed} packets "
+            f"({self.bytes_analyzed} bytes) in {duration:.1f} seconds "
+            f"({packets_per_second:.1f} packets/sec)"
+        )
+        
+        self.status_callback(True, status_message)
+        
+    def _get_default_interface(self) -> Optional[str]:
+        """Get the default network interface.
+        
+        Returns:
+            str: Interface name or None if unavailable
+        """
+        try:
+            # Get the default gateway interface
+            gateways = netifaces.gateways()
+            if 'default' in gateways and netifaces.AF_INET in gateways['default']:
+                _, interface = gateways['default'][netifaces.AF_INET]
+                return interface
+                
+            # If no default found, try to use the first non-loopback interface
+            for interface in netifaces.interfaces():
+                if interface != 'lo' and interface != 'localhost':
+                    addresses = netifaces.ifaddresses(interface)
+                    if netifaces.AF_INET in addresses:
+                        return interface
+                        
+        except Exception as e:
+            logger.error(f"Error determining default interface: {e}")
+            
+        return None 
+
+    def _maybe_save_traffic_snapshot(self) -> None:
+        """Save traffic snapshot if enough time has passed."""
+        if not self.db_session_id:
+            return
+            
+        now = datetime.now()
+        
+        # Initialize last snapshot time if needed
+        if self.stats['last_snapshot_time'] is None:
+            self.stats['last_snapshot_time'] = now
+            return
+            
+        # Check if it's time for a new snapshot (every 10 seconds)
+        time_since_last = (now - self.stats['last_snapshot_time']).total_seconds()
+        if time_since_last >= 10:
+            self._save_traffic_snapshot()
+            self.stats['last_snapshot_time'] = now
+    
+    def _save_traffic_snapshot(self) -> None:
+        """Save a traffic snapshot to the database."""
+        if not self.db_session_id:
+            return
+            
+        try:
+            # Get current statistics
+            stats = self.get_statistics()
+            
+            # Prepare protocol stats
+            protocol_stats = {}
+            for proto, count in self.protocol_counts.items():
+                protocol_stats[proto] = {
+                    'count': count,
+                    'bytes': self.bytes_analyzed
+                }
+                
+            # Add protocol stats to database
+            self.database.add_protocol_stats(
+                self.db_session_id,
+                datetime.now(),
+                protocol_stats
+            )
+            
+            # Prepare IP stats
+            ip_stats = {}
+            for ip, traffic in self.ip_counts.items():
+                ip_stats[ip] = {
+                    'sent_packets': traffic,
+                    'recv_packets': self.dst_ip_counts[ip],
+                    'sent_bytes': self.bytes_analyzed
+                }
+                
+            # Add IP stats to database
+            self.database.add_ip_stats(
+                self.db_session_id,
+                datetime.now(),
+                ip_stats
+            )
+            
+            # Add traffic snapshot
+            self.database.add_traffic_snapshot(
+                self.db_session_id,
+                datetime.now(),
+                stats['duration_seconds'],
+                stats['packets_analyzed'],
+                stats['bytes_analyzed'],
+                stats['packets_per_second'],
+                stats['bytes_per_second'],
+                {
+                    'top_source_ips': dict(Counter(self.ip_counts).most_common(10)),
+                    'top_destination_ips': dict(Counter(self.dst_ip_counts).most_common(10)),
+                    'tcp_ports': dict(Counter(self.port_counts).most_common(10)),
+                    'http_methods': dict(Counter(self.protocol_counts).most_common(10)),
+                    'dns_queries': dict(Counter(self.protocol_counts).most_common(10))
+                }
+            )
+            
+            logger.debug(f"Saved traffic snapshot for session {self.db_session_id}")
+            
+        except Exception as e:
+            logger.error(f"Error saving traffic snapshot: {e}")
+        
+    def _handle_memory_pressure(self, level: MemoryPressureLevel):
+        """
+        Handle changes in memory pressure level.
+        
+        Args:
+            level: New memory pressure level
+        """
+        logger.info(f"Memory pressure changed to {level}, adjusting packet capture behavior")
+        
+        # Adjust buffer size based on memory pressure
+        new_buffer_size = max(10, self.memory_manager.get_max_buffer_size() // 10)
+        
+        # Log the change
+        logger.info(f"Adjusting packet buffer size from {self.buffer_size} to {new_buffer_size}")
+        
+        # Update buffer size
+        self.buffer_size = new_buffer_size
+        
+        # Trim history if pressure is high or critical
+        if level in (MemoryPressureLevel.HIGH, MemoryPressureLevel.CRITICAL):
+            self._trim_packet_history(aggressive=True)
+            
+        # Process any pending packets in buffer if high/critical pressure
+        if level in (MemoryPressureLevel.HIGH, MemoryPressureLevel.CRITICAL) and len(self.packet_buffer) > 0:
+            self._process_packet_buffer()
+
+        # Register the adaptive action
+        self.memory_manager.register_adaptive_action()
+        
+    def _trim_packet_history(self, aggressive=False):
+        """
+        Trim packet history to reduce memory usage.
+        
+        Args:
+            aggressive: If True, trim more aggressively
+        """
+        if not self.packet_history:
+            return
+            
+        current_size = len(self.packet_history)
+        
+        if aggressive:
+            # Keep only 25% of packets during high memory pressure
+            target_size = max(100, current_size // 4)
+        else:
+            # Keep 50% of packets during normal trim
+            target_size = max(100, current_size // 2)
+            
+        if current_size > target_size:
+            # Keep newest packets, discard oldest
+            self.packet_history = self.packet_history[-target_size:]
+            logger.info(f"Trimmed packet history from {current_size} to {len(self.packet_history)}")
+        
+    def get_memory_stats(self) -> Dict[str, Any]:
+        """
+        Get memory management statistics.
+        
+        Returns:
+            Dict containing memory statistics
+        """
+        mem_metrics = self.memory_manager.get_metrics()
+        optimizer_metrics = self.packet_optimizer.get_metrics()
+        
+        stats = {
+            "current_memory_usage": mem_metrics.get("current_memory_usage", 0),
+            "peak_memory_usage": mem_metrics.get("peak_memory_usage", 0),
+            "memory_pressure_level": mem_metrics.get("current_pressure_level", "LOW"),
+            "memory_checks": mem_metrics.get("memory_checks", 0),
+            "pressure_changes": mem_metrics.get("pressure_changes", 0),
+            "gc_invocations": mem_metrics.get("gc_invocations", 0),
+            "packets_dropped": mem_metrics.get("packets_dropped", 0) + self.mem_packets_dropped,
+            "packets_optimized": optimizer_metrics.get("packets_optimized", 0),
+            "bytes_saved": optimizer_metrics.get("bytes_saved", 0),
+            "payloads_truncated": optimizer_metrics.get("payloads_truncated", 0),
+            "buffer_size": self.buffer_size,
+            "max_buffer_size": self.memory_manager.get_max_buffer_size(),
+            "history_size": len(self.packet_history),
+            "ip_cache_size": optimizer_metrics.get("ip_cache_size", 0),
+            "mac_cache_size": optimizer_metrics.get("mac_cache_size", 0),
+            "current_strategy": {
+                "sampling_rate": self.memory_manager.get_current_strategy().get("sampling_rate", 1.0),
+                "max_payload_size": self.packet_optimizer.max_payload_size
+            },
+            "process_memory": mem_metrics.get("process_memory", {})
+        }
+        
+        return stats
+        
+    def _reset_statistics(self):
+        """Reset all statistical counters."""
+        self.protocol_counts = Counter()
+        self.ip_counts = defaultdict(int)
+        self.dst_ip_counts = defaultdict(int)
+        self.port_counts = defaultdict(int)
+        self.connection_pairs = set()
+        self.bytes_analyzed = 0
+        self.packets_analyzed = 0
+        self.packet_history = []
+        
+    def _send_status_update(self):
+        """Send a status update via the callback if registered."""
+        if not self.status_callback:
+            return
+            
+        current_time = datetime.now()
+        duration = (current_time - self.start_time).total_seconds()
+        packets_per_second = self.packets_analyzed / max(1, duration)
+        
+        status_message = (
+            f"Captured {self.packets_analyzed} packets "
+            f"({self.bytes_analyzed} bytes) in {duration:.1f} seconds "
+            f"({packets_per_second:.1f} packets/sec)"
+        )
+        
+        self.status_callback(True, status_message)
+        
+    def _get_default_interface(self) -> Optional[str]:
+        """Get the default network interface.
+        
+        Returns:
+            str: Interface name or None if unavailable
+        """
+        try:
+            # Get the default gateway interface
+            gateways = netifaces.gateways()
+            if 'default' in gateways and netifaces.AF_INET in gateways['default']:
+                _, interface = gateways['default'][netifaces.AF_INET]
+                return interface
+                
+            # If no default found, try to use the first non-loopback interface
+            for interface in netifaces.interfaces():
+                if interface != 'lo' and interface != 'localhost':
+                    addresses = netifaces.ifaddresses(interface)
+                    if netifaces.AF_INET in addresses:
+                        return interface
+                        
+        except Exception as e:
+            logger.error(f"Error determining default interface: {e}")
+            
+        return None 
+
+    def _maybe_save_traffic_snapshot(self) -> None:
+        """Save traffic snapshot if enough time has passed."""
+        if not self.db_session_id:
+            return
+            
+        now = datetime.now()
+        
+        # Initialize last snapshot time if needed
+        if self.stats['last_snapshot_time'] is None:
+            self.stats['last_snapshot_time'] = now
+            return
+            
+        # Check if it's time for a new snapshot (every 10 seconds)
+        time_since_last = (now - self.stats['last_snapshot_time']).total_seconds()
+        if time_since_last >= 10:
+            self._save_traffic_snapshot()
+            self.stats['last_snapshot_time'] = now
+    
+    def _save_traffic_snapshot(self) -> None:
+        """Save a traffic snapshot to the database."""
+        if not self.db_session_id:
+            return
+            
+        try:
+            # Get current statistics
+            stats = self.get_statistics()
+            
+            # Prepare protocol stats
+            protocol_stats = {}
+            for proto, count in self.protocol_counts.items():
+                protocol_stats[proto] = {
+                    'count': count,
+                    'bytes': self.bytes_analyzed
+                }
+                
+            # Add protocol stats to database
+            self.database.add_protocol_stats(
+                self.db_session_id,
+                datetime.now(),
+                protocol_stats
+            )
+            
+            # Prepare IP stats
+            ip_stats = {}
+            for ip, traffic in self.ip_counts.items():
+                ip_stats[ip] = {
+                    'sent_packets': traffic,
+                    'recv_packets': self.dst_ip_counts[ip],
+                    'sent_bytes': self.bytes_analyzed
+                }
+                
+            # Add IP stats to database
+            self.database.add_ip_stats(
+                self.db_session_id,
+                datetime.now(),
+                ip_stats
+            )
+            
+            # Add traffic snapshot
+            self.database.add_traffic_snapshot(
+                self.db_session_id,
+                datetime.now(),
+                stats['duration_seconds'],
+                stats['packets_analyzed'],
+                stats['bytes_analyzed'],
+                stats['packets_per_second'],
+                stats['bytes_per_second'],
+                {
+                    'top_source_ips': dict(Counter(self.ip_counts).most_common(10)),
+                    'top_destination_ips': dict(Counter(self.dst_ip_counts).most_common(10)),
+                    'tcp_ports': dict(Counter(self.port_counts).most_common(10)),
+                    'http_methods': dict(Counter(self.protocol_counts).most_common(10)),
+                    'dns_queries': dict(Counter(self.protocol_counts).most_common(10))
+                }
+            )
+            
+            logger.debug(f"Saved traffic snapshot for session {self.db_session_id}")
+            
+        except Exception as e:
+            logger.error(f"Error saving traffic snapshot: {e}")
+        
+    def _handle_memory_pressure(self, level: MemoryPressureLevel):
+        """
+        Handle changes in memory pressure level.
+        
+        Args:
+            level: New memory pressure level
+        """
+        logger.info(f"Memory pressure changed to {level}, adjusting packet capture behavior")
+        
+        # Adjust buffer size based on memory pressure
+        new_buffer_size = max(10, self.memory_manager.get_max_buffer_size() // 10)
+        
+        # Log the change
+        logger.info(f"Adjusting packet buffer size from {self.buffer_size} to {new_buffer_size}")
+        
+        # Update buffer size
+        self.buffer_size = new_buffer_size
+        
+        # Trim history if pressure is high or critical
+        if level in (MemoryPressureLevel.HIGH, MemoryPressureLevel.CRITICAL):
+            self._trim_packet_history(aggressive=True)
+            
+        # Process any pending packets in buffer if high/critical pressure
+        if level in (MemoryPressureLevel.HIGH, MemoryPressureLevel.CRITICAL) and len(self.packet_buffer) > 0:
+            self._process_packet_buffer()
+
+        # Register the adaptive action
+        self.memory_manager.register_adaptive_action()
+        
+    def _trim_packet_history(self, aggressive=False):
+        """
+        Trim packet history to reduce memory usage.
+        
+        Args:
+            aggressive: If True, trim more aggressively
+        """
+        if not self.packet_history:
+            return
+            
+        current_size = len(self.packet_history)
+        
+        if aggressive:
+            # Keep only 25% of packets during high memory pressure
+            target_size = max(100, current_size // 4)
+        else:
+            # Keep 50% of packets during normal trim
+            target_size = max(100, current_size // 2)
+            
+        if current_size > target_size:
+            # Keep newest packets, discard oldest
+            self.packet_history = self.packet_history[-target_size:]
+            logger.info(f"Trimmed packet history from {current_size} to {len(self.packet_history)}")
+        
+    def get_memory_stats(self) -> Dict[str, Any]:
+        """
+        Get memory management statistics.
+        
+        Returns:
+            Dict containing memory statistics
+        """
+        mem_metrics = self.memory_manager.get_metrics()
+        optimizer_metrics = self.packet_optimizer.get_metrics()
+        
+        stats = {
+            "current_memory_usage": mem_metrics.get("current_memory_usage", 0),
+            "peak_memory_usage": mem_metrics.get("peak_memory_usage", 0),
+            "memory_pressure_level": mem_metrics.get("current_pressure_level", "LOW"),
+            "memory_checks": mem_metrics.get("memory_checks", 0),
+            "pressure_changes": mem_metrics.get("pressure_changes", 0),
+            "gc_invocations": mem_metrics.get("gc_invocations", 0),
+            "packets_dropped": mem_metrics.get("packets_dropped", 0) + self.mem_packets_dropped,
+            "packets_optimized": optimizer_metrics.get("packets_optimized", 0),
+            "bytes_saved": optimizer_metrics.get("bytes_saved", 0),
+            "payloads_truncated": optimizer_metrics.get("payloads_truncated", 0),
+            "buffer_size": self.buffer_size,
+            "max_buffer_size": self.memory_manager.get_max_buffer_size(),
+            "history_size": len(self.packet_history),
+            "ip_cache_size": optimizer_metrics.get("ip_cache_size", 0),
+            "mac_cache_size": optimizer_metrics.get("mac_cache_size", 0),
+            "current_strategy": {
+                "sampling_rate": self.memory_manager.get_current_strategy().get("sampling_rate", 1.0),
+                "max_payload_size": self.packet_optimizer.max_payload_size
+            },
+            "process_memory": mem_metrics.get("process_memory", {})
+        }
+        
+        return stats
+        
+    def _reset_statistics(self):
+        """Reset all statistical counters."""
+        self.protocol_counts = Counter()
+        self.ip_counts = defaultdict(int)
+        self.dst_ip_counts = defaultdict(int)
+        self.port_counts = defaultdict(int)
+        self.connection_pairs = set()
+        self.bytes_analyzed = 0
+        self.packets_analyzed = 0
+        self.packet_history = []
+        
+    def _send_status_update(self):
+        """Send a status update via the callback if registered."""
+        if not self.status_callback:
+            return
+            
+        current_time = datetime.now()
+        duration = (current_time - self.start_time).total_seconds()
+        packets_per_second = self.packets_analyzed / max(1, duration)
+        
+        status_message = (
+            f"Captured {self.packets_analyzed} packets "
+            f"({self.bytes_analyzed} bytes) in {duration:.1f} seconds "
+            f"({packets_per_second:.1f} packets/sec)"
+        )
+        
+        self.status_callback(True, status_message)
+        
+    def _get_default_interface(self) -> Optional[str]:
+        """Get the default network interface.
+        
+        Returns:
+            str: Interface name or None if unavailable
+        """
+        try:
+            # Get the default gateway interface
+            gateways = netifaces.gateways()
+            if 'default' in gateways and netifaces.AF_INET in gateways['default']:
+                _, interface = gateways['default'][netifaces.AF_INET]
+                return interface
+                
+            # If no default found, try to use the first non-loopback interface
+            for interface in netifaces.interfaces():
+                if interface != 'lo' and interface != 'localhost':
+                    addresses = netifaces.ifaddresses(interface)
+                    if netifaces.AF_INET in addresses:
+                        return interface
+                        
+        except Exception as e:
+            logger.error(f"Error determining default interface: {e}")
+            
+        return None 
+
+    def _maybe_save_traffic_snapshot(self) -> None:
+        """Save traffic snapshot if enough time has passed."""
+        if not self.db_session_id:
+            return
+            
+        now = datetime.now()
+        
+        # Initialize last snapshot time if needed
+        if self.stats['last_snapshot_time'] is None:
+            self.stats['last_snapshot_time'] = now
+            return
+            
+        # Check if it's time for a new snapshot (every 10 seconds)
+        time_since_last = (now - self.stats['last_snapshot_time']).total_seconds()
+        if time_since_last >= 10:
+            self._save_traffic_snapshot()
+            self.stats['last_snapshot_time'] = now
+    
+    def _save_traffic_snapshot(self) -> None:
+        """Save a traffic snapshot to the database."""
+        if not self.db_session_id:
+            return
+            
+        try:
+            # Get current statistics
+            stats = self.get_statistics()
+            
+            # Prepare protocol stats
+            protocol_stats = {}
+            for proto, count in self.protocol_counts.items():
+                protocol_stats[proto] = {
+                    'count': count,
+                    'bytes': self.bytes_analyzed
+                }
+                
+            # Add protocol stats to database
+            self.database.add_protocol_stats(
+                self.db_session_id,
+                datetime.now(),
+                protocol_stats
+            )
+            
+            # Prepare IP stats
+            ip_stats = {}
+            for ip, traffic in self.ip_counts.items():
+                ip_stats[ip] = {
+                    'sent_packets': traffic,
+                    'recv_packets': self.dst_ip_counts[ip],
+                    'sent_bytes': self.bytes_analyzed
+                }
+                
+            # Add IP stats to database
+            self.database.add_ip_stats(
+                self.db_session_id,
+                datetime.now(),
+                ip_stats
+            )
+            
+            # Add traffic snapshot
+            self.database.add_traffic_snapshot(
+                self.db_session_id,
+                datetime.now(),
+                stats['duration_seconds'],
+                stats['packets_analyzed'],
+                stats['bytes_analyzed'],
+                stats['packets_per_second'],
+                stats['bytes_per_second'],
+                {
+                    'top_source_ips': dict(Counter(self.ip_counts).most_common(10)),
+                    'top_destination_ips': dict(Counter(self.dst_ip_counts).most_common(10)),
+                    'tcp_ports': dict(Counter(self.port_counts).most_common(10)),
+                    'http_methods': dict(Counter(self.protocol_counts).most_common(10)),
+                    'dns_queries': dict(Counter(self.protocol_counts).most_common(10))
+                }
+            )
+            
+            logger.debug(f"Saved traffic snapshot for session {self.db_session_id}")
+            
+        except Exception as e:
+            logger.error(f"Error saving traffic snapshot: {e}")
+        
+    def _handle_memory_pressure(self, level: MemoryPressureLevel):
+        """
+        Handle changes in memory pressure level.
+        
+        Args:
+            level: New memory pressure level
+        """
+        logger.info(f"Memory pressure changed to {level}, adjusting packet capture behavior")
+        
+        # Adjust buffer size based on memory pressure
+        new_buffer_size = max(10, self.memory_manager.get_max_buffer_size() // 10)
+        
+        # Log the change
+        logger.info(f"Adjusting packet buffer size from {self.buffer_size} to {new_buffer_size}")
+        
+        # Update buffer size
+        self.buffer_size = new_buffer_size
+        
+        # Trim history if pressure is high or critical
+        if level in (MemoryPressureLevel.HIGH, MemoryPressureLevel.CRITICAL):
+            self._trim_packet_history(aggressive=True)
+            
+        # Process any pending packets in buffer if high/critical pressure
+        if level in (MemoryPressureLevel.HIGH, MemoryPressureLevel.CRITICAL) and len(self.packet_buffer) > 0:
+            self._process_packet_buffer()
+
+        # Register the adaptive action
+        self.memory_manager.register_adaptive_action()
+        
+    def _trim_packet_history(self, aggressive=False):
+        """
+        Trim packet history to reduce memory usage.
+        
+        Args:
+            aggressive: If True, trim more aggressively
+        """
+        if not self.packet_history:
+            return
+            
+        current_size = len(self.packet_history)
+        
+        if aggressive:
+            # Keep only 25% of packets during high memory pressure
+            target_size = max(100, current_size // 4)
+        else:
+            # Keep 50% of packets during normal trim
+            target_size = max(100, current_size // 2)
+            
+        if current_size > target_size:
+            # Keep newest packets, discard oldest
+            self.packet_history = self.packet_history[-target_size:]
+            logger.info(f"Trimmed packet history from {current_size} to {len(self.packet_history)}")
+        
+    def get_memory_stats(self) -> Dict[str, Any]:
+        """
+        Get memory management statistics.
+        
+        Returns:
+            Dict containing memory statistics
+        """
+        mem_metrics = self.memory_manager.get_metrics()
+        optimizer_metrics = self.packet_optimizer.get_metrics()
+        
+        stats = {
+            "current_memory_usage": mem_metrics.get("current_memory_usage", 0),
+            "peak_memory_usage": mem_metrics.get("peak_memory_usage", 0),
+            "memory_pressure_level": mem_metrics.get("current_pressure_level", "LOW"),
+            "memory_checks": mem_metrics.get("memory_checks", 0),
+            "pressure_changes": mem_metrics.get("pressure_changes", 0),
+            "gc_invocations": mem_metrics.get("gc_invocations", 0),
+            "packets_dropped": mem_metrics.get("packets_dropped", 0) + self.mem_packets_dropped,
+            "packets_optimized": optimizer_metrics.get("packets_optimized", 0),
+            "bytes_saved": optimizer_metrics.get("bytes_saved", 0),
+            "payloads_truncated": optimizer_metrics.get("payloads_truncated", 0),
+            "buffer_size": self.buffer_size,
+            "max_buffer_size": self.memory_manager.get_max_buffer_size(),
+            "history_size": len(self.packet_history),
+            "ip_cache_size": optimizer_metrics.get("ip_cache_size", 0),
+            "mac_cache_size": optimizer_metrics.get("mac_cache_size", 0),
+            "current_strategy": {
+                "sampling_rate": self.memory_manager.get_current_strategy().get("sampling_rate", 1.0),
+                "max_payload_size": self.packet_optimizer.max_payload_size
+            },
+            "process_memory": mem_metrics.get("process_memory", {})
+        }
+        
+        return stats
+        
+    def _reset_statistics(self):
+        """Reset all statistical counters."""
+        self.protocol_counts = Counter()
+        self.ip_counts = defaultdict(int)
+        self.dst_ip_counts = defaultdict(int)
+        self.port_counts = defaultdict(int)
+        self.connection_pairs = set()
+        self.bytes_analyzed = 0
+        self.packets_analyzed = 0
+        self.packet_history = []
+        
+    def _send_status_update(self):
+        """Send a status update via the callback if registered."""
+        if not self.status_callback:
+            return
+            
+        current_time = datetime.now()
+        duration = (current_time - self.start_time).total_seconds()
+        packets_per_second = self.packets_analyzed / max(1, duration)
+        
+        status_message = (
+            f"Captured {self.packets_analyzed} packets "
+            f"({self.bytes_analyzed} bytes) in {duration:.1f} seconds "
+            f"({packets_per_second:.1f} packets/sec)"
+        )
+        
+        self.status_callback(True, status_message)
+        
+    def _get_default_interface(self) -> Optional[str]:
+        """Get the default network interface.
+        
+        Returns:
+            str: Interface name or None if unavailable
+        """
+        try:
+            # Get the default gateway interface
+            gateways = netifaces.gateways()
+            if 'default' in gateways and netifaces.AF_INET in gateways['default']:
+                _, interface = gateways['default'][netifaces.AF_INET]
+                return interface
+                
+            # If no default found, try to use the first non-loopback interface
+            "bytes_saved": optimizer_metrics.get("bytes_saved", 0

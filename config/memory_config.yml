@@ -1,0 +1,127 @@
+# Memory Management Configuration
+# This file contains settings for ARPGuard's memory management system
+
+# Memory pressure thresholds (percentage)
+low_threshold: 50      # Below this is considered LOW pressure
+medium_threshold: 70   # Below this is considered MEDIUM pressure
+high_threshold: 85     # Below this is considered HIGH pressure
+critical_threshold: 95 # Above this is considered CRITICAL pressure
+
+# Memory monitoring settings
+monitoring_interval: 15  # Seconds between memory checks
+memory_overhead_factor: 1.5  # Factor applied to estimate memory usage
+
+# LOW pressure settings
+low_sampling_rate: 1.0     # Process all packets
+low_buffer_size: 10000     # Maximum packet buffer size
+low_gc_interval: 600       # Garbage collection interval (seconds)
+
+# MEDIUM pressure settings
+medium_sampling_rate: 0.75  # Process 75% of packets
+medium_buffer_size: 5000    # Maximum packet buffer size
+medium_gc_interval: 300     # Garbage collection interval (seconds)
+
+# HIGH pressure settings
+high_sampling_rate: 0.5     # Process 50% of packets
+high_buffer_size: 2500      # Maximum packet buffer size
+high_gc_interval: 120       # Garbage collection interval (seconds)
+
+# CRITICAL pressure settings
+critical_sampling_rate: 0.25  # Process 25% of packets
+critical_buffer_size: 1000    # Maximum packet buffer size
+critical_gc_interval: 60      # Garbage collection interval (seconds)
+
+# Packet optimization settings
+max_packet_payload: 1500    # Maximum packet payload size in bytes
+deduplication_enabled: true  # Enable string deduplication for common values
+
+# Memory thresholds (as percentages)
+memory:
+  # Critical memory threshold (95%) - aggressive packet dropping begins
+  critical_threshold: 0.95
+  
+  # High memory threshold (85%) - packet sampling begins
+  high_threshold: 0.85
+  
+  # Medium memory threshold (75%) - optimization mode activated
+  medium_threshold: 0.75
+  
+  # Low memory threshold (60%) - normal operation with monitoring
+  low_threshold: 0.60
+  
+  # Monitoring interval in seconds
+  monitoring_interval: 5
+  
+  # Maximum number of packets to buffer before processing
+  max_packet_buffer: 5000
+  
+  # Maximum number of packets to keep in history
+  max_packet_history: 10000
+  
+  # Maximum packet size in bytes (64KB)
+  max_packet_size: 65536
+  
+  # Garbage collection interval in seconds
+  gc_interval: 30
+  
+  # Whether to use weak references for packet cache
+  use_weak_references: true
+  
+  # Whether to deduplicate packets by hash
+  packet_deduplication: true
+  
+  # Maximum number of packet hashes to keep for deduplication
+  max_packet_hashes: 10000
+  
+  # Whether to store raw packet objects
+  store_raw_packets: false
+  
+  # Whether to compress packet data
+  compress_packets: true
+  
+  # Maximum packet payload size to store (1KB)
+  max_packet_payload: 1024
+
+# Strategy selection
+# Options: adaptive, balanced, aggressive, conservative
+strategy: adaptive
+
+# Advanced settings
+advanced:
+  # Whether to enable packet sampling under high memory pressure
+  enable_packet_sampling: true
+  
+  # Sampling rate during normal operation (1 = process all packets)
+  normal_sampling_rate: 1
+  
+  # Sampling rate during high memory pressure (higher = more sampling)
+  high_pressure_sampling_rate: 4
+  
+  # Whether to monitor CPU usage as well as memory
+  monitor_cpu: true
+  
+  # CPU threshold for triggering optimizations
+  cpu_threshold: 0.8
+  
+  # Whether to monitor disk usage for packet storage
+  monitor_disk: true
+  
+  # Disk space threshold (as percentage free)
+  disk_threshold: 0.1
+  
+  # Maximum size of memory-mapped files (for large packet stores)
+  max_mmap_size: 104857600  # 100MB
+
+# Performance tuning
+performance:
+  # Whether to use a separate thread for memory monitoring
+  threaded_monitoring: true
+  
+  # Whether to preemptively run garbage collection
+  preemptive_gc: true
+  
+  # Whether to optimize for throughput (false = optimize for latency)
+  optimize_for_throughput: true
+  
+  # Maximum percentage of time to spend on memory management
+  max_mgmt_overhead: 0.05  # 5% 

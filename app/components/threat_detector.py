@@ -9,6 +9,7 @@ import netifaces
 from app.utils.logger import get_logger
 from app.utils.config import get_config
 from app.utils.mac_vendor import get_vendor_for_mac
+from app.ml.packet_converter import convert_arp_packet
 
 # Module logger
 logger = get_logger('components.threat_detector')
@@ -120,6 +121,9 @@ class ThreatDetector:
                         break
                     self._process_arp_packet(packet)
                     
+                    # Also analyze the packet with rule-based and ML detection
+                    self.analyze_packet(packet)
+                    
         except Exception as e:
             logger.error(f"Error in threat detection: {e}")
             if self.callback:
@@ -192,65 +196,16 @@ class ThreatDetector:
         elif src_ip == self.gateway_ip and self.gateway_mac and src_mac != self.gateway_mac:
             self._register_threat(src_ip, src_mac, current_time, is_gateway=True)
             
-        # 4. Check for ARP responses that weren't requested (ARP spoofing technique)
-        # This would require tracking ARP requests, which is more complex
-            
-        # Update our known mappings
-        self._update_mappings(src_ip, src_mac)
-        
-    def _register_threat(self, ip: str, mac: str, timestamp: datetime, is_gateway: bool = False):
-        """Register a potential threat.
-        
-        Args:
-            ip: The IP address involved
-            mac: The MAC address involved
-            timestamp: When the threat was detected
-            is_gateway: Whether this involves the gateway
-        """
-        # Initialize threat data if needed
-        if ip not in self.threats:
-            self.threats[ip] = {
-                'macs': set(),
-                'first_seen': timestamp,
-                'last_seen': timestamp
-            }
-        
-        # Update threat data
-        self.threats[ip]['macs'].add(mac)
-        self.threats[ip]['last_seen'] = timestamp
-        
-        # Determine threat severity
-        severity = "CRITICAL" if is_gateway else "WARNING"
-        
-        # Log the threat
-        if is_gateway:
-            message = f"{severity}: Possible gateway ARP poisoning detected! {ip} is claimed by multiple MAC addresses: {', '.join(self.threats[ip]['macs'])}"
-        else:
-            message = f"{severity}: Possible ARP poisoning detected! {ip} is claimed by multiple MAC addresses: {', '.join(self.threats[ip]['macs'])}"
-        
-        logger.warning(message)
-        
-        # Notify via callback
-        if self.callback:
-            self.callback(True, message)
-        
-    def _update_mappings(self, ip: str, mac: str):
-        """Update our known IP to MAC mappings.
-        
-        Args:
-            ip: The IP address
-            mac: The MAC address
-        """
-        # Update IP -> MAC mapping
-        self.ip_mac_mappings[ip] = mac
+        # Update our IP-MAC and MAC-IP mappings
+        self.ip_mac_mappings[src_ip] = src_mac
         
         # Update MAC -> IPs mapping
-        if mac not in self.mac_ip_mappings:
-            self.mac_ip_mappings[mac] = set()
-        self.mac_ip_mappings[mac].add(ip)
+        if src_mac not in self.mac_ip_mappings:
+            self.mac_ip_mappings[src_mac] = set()
+        self.mac_ip_mappings[src_mac].add(src_ip)
         
     def _is_valid_ip(self, ip: str) -> bool:
-        """Check if an IP address is valid for our purposes.
+        """Check if an IP address is valid.
         
         Args:
             ip: The IP address to check
@@ -258,11 +213,11 @@ class ThreatDetector:
         Returns:
             bool: True if valid, False otherwise
         """
-        # Basic validation - could be expanded
-        return ip and ip != "0.0.0.0" and not ip.startswith("169.254.")  # Exclude APIPA addresses
+        # Minimum validation - could be more comprehensive
+        return ip and "." in ip and len(ip.split(".")) == 4
         
     def _is_valid_mac(self, mac: str) -> bool:
-        """Check if a MAC address is valid for our purposes.
+        """Check if a MAC address is valid.
         
         Args:
             mac: The MAC address to check
@@ -270,100 +225,176 @@ class ThreatDetector:
         Returns:
             bool: True if valid, False otherwise
         """
-        # Basic validation - could be expanded
-        return mac and mac != "00:00:00:00:00:00" and mac.count(":") == 5 
-
+        # Minimum validation - could be more comprehensive
+        return mac and ":" in mac and len(mac.split(":")) == 6
+        
     def set_ml_controller(self, ml_controller):
-        """Set the ML controller reference for enhanced detection.
+        """Set the ML controller for advanced detection.
         
         Args:
-            ml_controller: MLController instance
+            ml_controller: The ML controller instance
         """
         self.ml_controller = ml_controller
-        logger.info("ML controller integrated with threat detector")
-    
+        
+        # Set gateway information in the ML controller's context tracker
+        if self.ml_controller and self.gateway_ip:
+            self.ml_controller.context_tracker.gateway_ip = self.gateway_ip
+            if self.gateway_mac:
+                self.ml_controller.context_tracker.gateway_mac = self.gateway_mac
+                
+        logger.info("ML controller set for threat detection")
+        
     def analyze_packet(self, packet):
-        """Analyze a packet for potential threats.
+        """Analyze a packet using rule-based and ML detection.
+        
+        This method integrates traditional detection, rule-based detection,
+        and ML-based detection to provide comprehensive threat analysis.
         
         Args:
-            packet: The packet data to analyze
+            packet: The Scapy packet to analyze
             
         Returns:
-            Dictionary with analysis results
+            List of detection results
         """
-        # Run traditional threat detection
-        result = self._traditional_analysis(packet)
+        # Skip if no ML controller is available
+        if not self.ml_controller:
+            return []
+            
+        # Skip non-ARP packets for now
+        if not packet.haslayer(ARP):
+            return []
+            
+        try:
+            # Convert Scapy packet to dictionary format for ML processing
+            packet_dict = self.ml_controller.convert_scapy_packet_to_dict(packet)
+            
+            # Process with ML controller
+            results = self.ml_controller.process_packet(packet_dict)
+            
+            # Handle detections
+            if results.get('is_threat', False):
+                self._handle_ml_detection(results)
+                
+            return results
+                
+        except Exception as e:
+            logger.error(f"Error in packet analysis: {e}")
+            return []
+            
+    def _handle_ml_detection(self, detection_result: Dict[str, Any]):
+        """Handle a detection from the ML system.
         
-        # If ML controller is available, enhance detection with ML
-        if self.ml_controller:
-            try:
-                ml_result = self.ml_controller.process_packet(packet)
+        Args:
+            detection_result: The detection result dictionary
+        """
+        # Handle rule-based detections
+        if 'rule_detections' in detection_result and detection_result['rule_detections']:
+            for detection in detection_result['rule_detections']:
+                self._handle_rule_detection(detection)
                 
-                # Combine traditional and ML results
-                combined_threat = max(
-                    result.get('threat_probability', 0), 
-                    ml_result.get('threat_probability', 0)
-                )
-                
-                # Update result with ML data
-                result['threat_probability'] = combined_threat
-                result['ml_enhanced'] = True
-                
-                # If ML detected an anomaly, add that to the result
-                if ml_result.get('is_anomaly', False):
-                    result['is_anomaly'] = True
-                    result['anomaly_explanation'] = ml_result.get('anomaly_explanation', {})
-                
-                # Update recommended action based on combined threat level
-                if combined_threat > 0.8:
-                    result['recommended_action'] = 'block'
-                elif combined_threat > 0.6:
-                    result['recommended_action'] = 'alert'
-                elif combined_threat > 0.4:
-                    result['recommended_action'] = 'monitor'
-                else:
-                    result['recommended_action'] = 'allow'
-                    
-            except Exception as e:
-                logger.error(f"Error integrating ML results: {e}")
+        # Handle ML-based detection
+        if detection_result.get('ml_detection', False) and 'ml_detection_result' in detection_result:
+            ml_detection = detection_result['ml_detection_result']
+            self._handle_rule_detection(ml_detection)  # Reuse same handler
+        elif detection_result.get('is_threat', False) and not detection_result.get('rule_detection', False):
+            # Create a standard format detection for legacy compatibility
+            ml_detection = {
+                "type": "ml_based",
+                "description": "ML-detected threat",
+                "severity": "MEDIUM",
+                "confidence": detection_result.get('threat_probability', 0.0),
+                "timestamp": datetime.now(),
+                "evidence": {
+                    "src_ip": detection_result.get('source_ip', 'Unknown'),
+                    "src_mac": detection_result.get('source_mac', 'Unknown'),
+                    "probability": detection_result.get('threat_probability', 0.0)
+                }
+            }
+            self._handle_rule_detection(ml_detection)
+            
+    def _handle_rule_detection(self, detection: Dict[str, Any]):
+        """Handle a detection from the rule-based system.
         
-        return result
+        Args:
+            detection: The detection dictionary
+        """
+        # Extract information from the detection
+        detection_type = detection["type"]
+        rule_id = detection.get("rule_id", "UNKNOWN")
+        severity = detection["severity"]
+        confidence = detection["confidence"]
+        evidence = detection["evidence"]
+        description = detection.get("description", "Unknown detection")
+        
+        # Determine if this is a serious threat
+        is_serious = severity in ["HIGH", "CRITICAL"]
+        
+        # Log the detection
+        log_message = f"{severity} threat detected by {detection_type} "
+        if rule_id != "UNKNOWN":
+            log_message += f"({rule_id}): "
+        log_message += f"{description} (Confidence: {confidence:.2f})"
+        
+        if is_serious:
+            logger.warning(log_message)
+        else:
+            logger.info(log_message)
+            
+        # Notify via callback if it's serious
+        if is_serious and self.callback:
+            detailed_message = f"{severity} threat: {description}\n"
+            detailed_message += f"Confidence: {confidence:.2f}, Type: {detection_type}"
+            if rule_id != "UNKNOWN":
+                detailed_message += f", Rule: {rule_id}"
+            detailed_message += f"\nEvidence: {evidence}"
+            self.callback(True, detailed_message)
+            
+        # Register threats in the traditional system if applicable
+        src_ip = evidence.get("src_ip")
+        src_mac = evidence.get("src_mac")
+        if src_ip and src_mac:
+            self._register_threat(
+                src_ip, 
+                src_mac, 
+                detection["timestamp"],
+                is_gateway=(evidence.get("gateway_ip") == self.gateway_ip)
+            )
     
-    def _traditional_analysis(self, packet):
-        """Perform traditional (rule-based) packet analysis.
+    def _register_threat(self, ip: str, mac: str, timestamp: datetime, is_gateway: bool = False):
+        """Register a threat in the threat database.
         
         Args:
-            packet: The packet data to analyze
-            
-        Returns:
-            Dictionary with analysis results
+            ip: The source IP address
+            mac: The source MAC address
+            timestamp: When the threat was detected
+            is_gateway: Whether this involves the gateway
         """
-        # This is the original analyze_packet logic, moved to a helper method
-        # ... existing analysis code ...
+        # Create threat entry if it doesn't exist
+        if ip not in self.threats:
+            self.threats[ip] = {
+                'macs': set(),
+                'first_seen': timestamp,
+                'last_seen': timestamp
+            }
+            
+        # Update threat entry
+        self.threats[ip]['macs'].add(mac)
+        self.threats[ip]['last_seen'] = timestamp
         
-        # This is a placeholder implementation
-        result = {
-            'threat_probability': 0.0,
-            'threat_type': None,
-            'recommended_action': 'allow'
-        }
+        # Log the threat
+        gateway_str = " (GATEWAY)" if is_gateway else ""
+        log_message = f"Potential ARP spoofing detected{gateway_str}: {ip} -> {mac}"
         
-        # Check for ARP spoofing
-        if self._check_arp_spoofing(packet):
-            result['threat_probability'] = 0.9
-            result['threat_type'] = 'arp_spoofing'
-            result['recommended_action'] = 'block'
-        
-        # Check for MAC flooding
-        elif self._check_mac_flooding(packet):
-            result['threat_probability'] = 0.8
-            result['threat_type'] = 'mac_flooding'
-            result['recommended_action'] = 'block'
-        
-        # Check for suspicious port scanning
-        elif self._check_port_scanning(packet):
-            result['threat_probability'] = 0.7
-            result['threat_type'] = 'port_scanning'
-            result['recommended_action'] = 'monitor'
-        
-        return result 
+        if is_gateway:
+            logger.warning(log_message)
+        else:
+            logger.info(log_message)
+            
+        # Notify via callback
+        if self.callback:
+            if is_gateway:
+                message = f"CRITICAL: Gateway impersonation detected! {ip} is now claiming to be {mac}"
+            else:
+                message = f"WARNING: Potential ARP spoofing detected. {ip} is now claiming to be {mac}"
+                
+            self.callback(True, message) 

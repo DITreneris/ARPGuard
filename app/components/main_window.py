@@ -26,6 +26,7 @@ from app.components.network_topology import NetworkTopologyView
 from app.components.vulnerability_view import VulnerabilityView
 from app.components.threat_intelligence_view import ThreatIntelligenceView
 from app.components.ml_view import MLView
+from app.components.rule_detection_view import RuleDetectionView
 from app.components.ml_controller import MLController
 from app.utils.icon import get_app_icon
 from app.utils.config import get_config
@@ -119,6 +120,10 @@ class MainWindow(QMainWindow):
         self.ml_view = MLView()
         self.tab_widget.addTab(self.ml_view, "Machine Learning")
         
+        # Add rule detection tab
+        self.rule_detection_view = RuleDetectionView(ml_controller=self.ml_controller)
+        self.tab_widget.addTab(self.rule_detection_view, "Rule Detection")
+        
         # Add controller tab
         self.controller_view = ControllerView()
         self.tab_widget.addTab(self.controller_view, "Controller")
@@ -134,11 +139,13 @@ class MainWindow(QMainWindow):
         self.scan_status_label = QLabel("Scan: Ready")
         self.detection_status_label = QLabel("Detection: Stopped")
         self.ml_status_label = QLabel("ML: Stopped")
+        self.rules_status_label = QLabel("Rules: 0 active")
         self.uptime_label = QLabel("Uptime: 00:00:00")
         
         self.status_bar.addWidget(self.scan_status_label)
         self.status_bar.addWidget(self.detection_status_label)
         self.status_bar.addWidget(self.ml_status_label)
+        self.status_bar.addWidget(self.rules_status_label)
         self.status_bar.addPermanentWidget(self.uptime_label)
         
         # Setup uptime timer
@@ -1245,6 +1252,10 @@ class MainWindow(QMainWindow):
                 self.ml_controller.ml_integration
             )
             
+            # Connect rule detection view to ML controller
+            self.rule_detection_view.set_ml_controller(self.ml_controller)
+            self.rule_detection_view.rule_toggled.connect(self._handle_rule_toggled)
+            
             # Start ML controller if auto-start is enabled
             if self.config.get("ml.start_on_launch", False):
                 self.start_ml_controller()
@@ -1253,6 +1264,29 @@ class MainWindow(QMainWindow):
             
         except Exception as e:
             logger.error(f"Error connecting ML components: {e}")
+
+    def _handle_rule_toggled(self, rule_id, enabled):
+        """Handle when a rule is toggled in the rule detection view.
+        
+        Args:
+            rule_id: ID of the rule
+            enabled: Whether the rule is enabled
+        """
+        try:
+            if enabled:
+                self.ml_controller.rule_engine.enable_rule(rule_id)
+                self.status_bar.showMessage(f"Rule {rule_id} enabled", 3000)
+            else:
+                self.ml_controller.rule_engine.disable_rule(rule_id)
+                self.status_bar.showMessage(f"Rule {rule_id} disabled", 3000)
+                
+            # Update rules status label
+            active_rules = self.ml_controller.get_statistics().get("rules_active", 0)
+            self.rules_status_label.setText(f"Rules: {active_rules} active")
+            
+        except Exception as e:
+            logger.error(f"Error toggling rule {rule_id}: {e}")
+            self.status_bar.showMessage(f"Error toggling rule: {e}", 5000)
 
     def get_uptime_string(self):
         """Get a formatted string of the application uptime."""
@@ -1270,6 +1304,11 @@ class MainWindow(QMainWindow):
         try:
             self.ml_controller.start()
             self.ml_status_label.setText("ML: Running")
+            
+            # Update rules status
+            active_rules = self.ml_controller.get_statistics().get("rules_active", 0)
+            self.rules_status_label.setText(f"Rules: {active_rules} active")
+            
             self.status_bar.showMessage("ML controller started", 3000)
         except Exception as e:
             logger.error(f"Error starting ML controller: {e}")
@@ -1281,6 +1320,7 @@ class MainWindow(QMainWindow):
         try:
             self.ml_controller.stop()
             self.ml_status_label.setText("ML: Stopped")
+            self.rules_status_label.setText("Rules: 0 active")
             self.status_bar.showMessage("ML controller stopped", 3000)
         except Exception as e:
             logger.error(f"Error stopping ML controller: {e}")
