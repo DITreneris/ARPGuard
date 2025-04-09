@@ -146,3 +146,61 @@ Maintain a change log for documentation updates:
 - Deprecation notices
 - Migration guides
 - Version compatibility matrix 
+
+# ARPGuard Version Control
+
+## Product Version: 0.2 (Enhanced UI and Core Features)
+- **Release Date**: April 6, 2025
+- **Status**: Beta
+- **Next Release**: 0.3 (Planned for May 2025)
+
+## Component Versions
+- **Core Engine**: 0.2.0
+- **GUI Interface**: 0.2.1
+- **CLI Interface**: 0.2.0
+- **ML Components**: 0.3.0
+- **Threat Intelligence**: 0.2.0
+- **API**: 0.2.0
+
+## Version History
+
+### 0.2 (April 6, 2025)
+- Enhanced UI with modern design
+- Improved core detection algorithms
+- Added ML-based threat detection (v0.3.0)
+- Enhanced performance monitoring
+- Added comprehensive test suite
+- Improved documentation
+
+### 0.1 (March 2025)
+- Initial release
+- Basic ARP spoofing detection
+- Simple GUI interface
+- Core network scanning
+- Basic threat detection
+
+## Next Release: 0.3 (Planned)
+- Advanced ML integration (v0.4.0)
+- Enhanced threat intelligence
+- Improved scalability
+- Extended API capabilities
+- Advanced reporting features
+
+## Dependencies
+- Python >= 3.8
+- PyQt5 >= 5.15.2
+- Scapy >= 2.4.5
+- scikit-learn >= 1.0.2
+- tensorflow >= 2.8.0
+
+## Configuration
+- Default logging level: INFO
+- Automatic updates: Enabled
+- Backup frequency: Daily
+- Data retention: 30 days
+
+## Notes
+- Compatible with Windows 10/11 and Linux
+- Requires administrator privileges
+- Network interface must support promiscuous mode
+- ML components require additional dependencies 
