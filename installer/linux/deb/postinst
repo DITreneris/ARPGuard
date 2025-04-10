@@ -1,0 +1,47 @@
+#!/bin/bash
+set -e
+
+# Create arpguard user if it doesn't exist
+if ! id -u arpguard > /dev/null 2>&1; then
+    useradd --system --no-create-home --shell /bin/false arpguard
+fi
+
+# Set directory permissions
+chown -R arpguard:arpguard /opt/arpguard
+chmod -R 755 /opt/arpguard
+
+# Install python dependencies
+echo "Installing Python dependencies..."
+pip3 install -r /opt/arpguard/requirements.txt || true
+
+# Create symbolic link for binary
+if [ ! -e /usr/local/bin/arpguard ]; then
+    ln -s /opt/arpguard/bin/arpguard /usr/local/bin/arpguard
+fi
+
+# Install systemd service
+if [ -d /etc/systemd/system ]; then
+    echo "Setting up systemd service..."
+    cp /opt/arpguard/systemd/arpguard.service /etc/systemd/system/
+    systemctl daemon-reload
+    systemctl enable arpguard.service
+    systemctl start arpguard.service
+fi
+
+# Add firewall rules if ufw is installed
+if command -v ufw >/dev/null 2>&1; then
+    echo "Configuring firewall rules..."
+    ufw allow 8080/tcp comment "ARP Guard Web Interface" || true
+    ufw allow 8081/tcp comment "ARP Guard WebSocket" || true
+fi
+
+echo "ARP Guard installation complete."
+
+# Create configuration directory if it doesn't exist
+if [ ! -d /etc/arpguard ]; then
+    mkdir -p /etc/arpguard
+    cp /opt/arpguard/config/config.yaml /etc/arpguard/
+    chown -R arpguard:arpguard /etc/arpguard
+fi
+
+exit 0 

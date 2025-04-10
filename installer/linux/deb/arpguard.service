@@ -1,0 +1,27 @@
+[Unit]
+Description=ARP Guard Network Security Tool
+After=network.target
+Wants=network.target
+
+[Service]
+Type=simple
+User=arpguard
+Group=arpguard
+ExecStart=/opt/arpguard/bin/arpguard --config /etc/arpguard/config.yaml --service
+Restart=on-failure
+RestartSec=5
+StandardOutput=journal
+StandardError=journal
+SyslogIdentifier=arpguard
+Environment="PYTHONUNBUFFERED=1"
+
+# Hardening
+ProtectSystem=full
+PrivateTmp=true
+PrivateDevices=true
+NoNewPrivileges=true
+ReadWritePaths=/var/log/arpguard /var/lib/arpguard
+WorkingDirectory=/opt/arpguard
+
+[Install]
+WantedBy=multi-user.target 

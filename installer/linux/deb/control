@@ -1,0 +1,22 @@
+Package: arpguard
+Version: 0.3.0
+Architecture: amd64
+Maintainer: ARPGuard Security <support@arpguard.com>
+Installed-Size: 25000
+Depends: python3 (>= 3.8), python3-pip, python3-dev, libpcap-dev
+Section: net
+Priority: optional
+Homepage: https://arpguard.com
+Description: ARP Guard Network Security Tool
+ ARP Guard is a comprehensive network security tool focused on
+ detecting and preventing ARP spoofing attacks. It provides real-time
+ monitoring, alerts, and analytics to help protect your network
+ from ARP-based attacks.
+ .
+ Features include:
+  * ARP spoofing detection
+  * Network scanning
+  * Threat intelligence
+  * Real-time monitoring
+  * Analytics dashboard
+  * Alert system 

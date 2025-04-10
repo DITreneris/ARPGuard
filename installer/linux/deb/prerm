@@ -1,0 +1,27 @@
+#!/bin/bash
+set -e
+
+# Stop and disable the service if it exists
+if [ -f /etc/systemd/system/arpguard.service ]; then
+    echo "Stopping and disabling ARP Guard service..."
+    systemctl stop arpguard.service || true
+    systemctl disable arpguard.service || true
+    systemctl daemon-reload
+fi
+
+# Remove firewall rules if ufw is installed
+if command -v ufw >/dev/null 2>&1; then
+    echo "Removing firewall rules..."
+    ufw delete allow 8080/tcp || true
+    ufw delete allow 8081/tcp || true
+fi
+
+# Remove symbolic link
+if [ -L /usr/local/bin/arpguard ]; then
+    echo "Removing symbolic link..."
+    rm -f /usr/local/bin/arpguard
+fi
+
+echo "ARP Guard pre-removal cleanup complete."
+
+exit 0 
