@@ -1,0 +1,11 @@
+{
+    "installation": "https://arp-guard.readthedocs.io/en/latest/installation.html",
+    "configuration": "https://arp-guard.readthedocs.io/en/latest/configuration.html",
+    "monitoring": "https://arp-guard.readthedocs.io/en/latest/monitoring.html",
+    "alerts": "https://arp-guard.readthedocs.io/en/latest/alerts.html",
+    "troubleshooting": "https://arp-guard.readthedocs.io/en/latest/troubleshooting.html",
+    "api": "https://arp-guard.readthedocs.io/en/latest/api.html",
+    "cli": "https://arp-guard.readthedocs.io/en/latest/cli.html",
+    "development": "https://arp-guard.readthedocs.io/en/latest/development.html",
+    "contributing": "https://arp-guard.readthedocs.io/en/latest/contributing.html"
+} 

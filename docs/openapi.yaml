@@ -1,0 +1,660 @@
+openapi: 3.0.0
+info:
+  title: ARP Guard API
+  description: API for ARP Guard - Network Security and Device Management
+  version: 1.0.0
+  contact:
+    name: ARP Guard Team
+    email: team@arpguard.io
+    url: https://arpguard.io
+  license:
+    name: MIT
+    url: https://opensource.org/licenses/MIT
+servers:
+  - url: https://api.arpguard.io
+    description: Production server
+  - url: https://api.arpguard.io/v1
+    description: Production server (explicit version)
+  - url: https://staging.arpguard.io/api
+    description: Staging server
+
+tags:
+  - name: Authentication
+    description: Authentication endpoints
+  - name: Devices
+    description: Device management
+  - name: Alerts
+    description: Alert management
+  - name: System
+    description: System information
+  - name: WebSockets
+    description: Real-time event streaming
+
+paths:
+  /health:
+    get:
+      summary: Get API health status
+      description: Get the current health status of the API
+      tags:
+        - System
+      security:
+        - apiKey: []
+      responses:
+        '200':
+          description: Health information
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Health'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '429':
+          $ref: '#/components/responses/RateLimited'
+
+  /stats:
+    get:
+      summary: Get system statistics
+      description: Get statistics about the system
+      tags:
+        - System
+      security:
+        - apiKey: []
+      responses:
+        '200':
+          description: System statistics
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Stats'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '429':
+          $ref: '#/components/responses/RateLimited'
+
+  /devices:
+    get:
+      summary: List all devices
+      description: Get a list of all devices
+      tags:
+        - Devices
+      security:
+        - apiKey: []
+      parameters:
+        - name: page
+          in: query
+          description: Page number
+          schema:
+            type: integer
+            default: 1
+        - name: limit
+          in: query
+          description: Number of items per page
+          schema:
+            type: integer
+            default: 50
+            maximum: 100
+      responses:
+        '200':
+          description: List of devices
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/Device'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '429':
+          $ref: '#/components/responses/RateLimited'
+    
+    post:
+      summary: Create a new device
+      description: Create a new device in the system
+      tags:
+        - Devices
+      security:
+        - apiKey: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/DeviceCreate'
+      responses:
+        '201':
+          description: Device created
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Device'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '409':
+          description: Device with the same MAC address already exists
+        '429':
+          $ref: '#/components/responses/RateLimited'
+
+  /devices/{deviceId}:
+    parameters:
+      - name: deviceId
+        in: path
+        description: Device ID
+        required: true
+        schema:
+          type: string
+    
+    get:
+      summary: Get device details
+      description: Get detailed information about a device
+      tags:
+        - Devices
+      security:
+        - apiKey: []
+      responses:
+        '200':
+          description: Device details
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Device'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '429':
+          $ref: '#/components/responses/RateLimited'
+    
+    put:
+      summary: Update a device
+      description: Update an existing device
+      tags:
+        - Devices
+      security:
+        - apiKey: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/DeviceUpdate'
+      responses:
+        '200':
+          description: Device updated
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Device'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '429':
+          $ref: '#/components/responses/RateLimited'
+    
+    delete:
+      summary: Delete a device
+      description: Delete a device from the system
+      tags:
+        - Devices
+      security:
+        - apiKey: []
+      responses:
+        '204':
+          description: Device deleted
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '429':
+          $ref: '#/components/responses/RateLimited'
+
+  /alerts:
+    get:
+      summary: List all alerts
+      description: Get a list of all alerts
+      tags:
+        - Alerts
+      security:
+        - apiKey: []
+      parameters:
+        - name: status
+          in: query
+          description: Filter alerts by status
+          schema:
+            type: string
+            enum: [open, acknowledged, resolved]
+        - name: severity
+          in: query
+          description: Filter alerts by severity
+          schema:
+            type: string
+            enum: [low, medium, high, critical]
+        - name: start_date
+          in: query
+          description: Filter alerts by start date (ISO format)
+          schema:
+            type: string
+            format: date-time
+        - name: end_date
+          in: query
+          description: Filter alerts by end date (ISO format)
+          schema:
+            type: string
+            format: date-time
+        - name: page
+          in: query
+          description: Page number
+          schema:
+            type: integer
+            default: 1
+        - name: limit
+          in: query
+          description: Number of items per page
+          schema:
+            type: integer
+            default: 50
+            maximum: 100
+      responses:
+        '200':
+          description: List of alerts
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/Alert'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '429':
+          $ref: '#/components/responses/RateLimited'
+
+  /alerts/{alertId}:
+    parameters:
+      - name: alertId
+        in: path
+        description: Alert ID
+        required: true
+        schema:
+          type: string
+    
+    get:
+      summary: Get alert details
+      description: Get detailed information about an alert
+      tags:
+        - Alerts
+      security:
+        - apiKey: []
+      responses:
+        '200':
+          description: Alert details
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Alert'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '429':
+          $ref: '#/components/responses/RateLimited'
+
+  /alerts/{alertId}/acknowledge:
+    parameters:
+      - name: alertId
+        in: path
+        description: Alert ID
+        required: true
+        schema:
+          type: string
+    
+    post:
+      summary: Acknowledge an alert
+      description: Acknowledge an alert to indicate it's being addressed
+      tags:
+        - Alerts
+      security:
+        - apiKey: []
+      responses:
+        '200':
+          description: Alert acknowledged
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '429':
+          $ref: '#/components/responses/RateLimited'
+
+  /ws:
+    get:
+      summary: WebSocket connection
+      description: |
+        Establish a WebSocket connection for real-time updates.
+        
+        After connecting, the client should send an authentication message:
+        ```json
+        {
+          "action": "authenticate",
+          "api_key": "your-api-key",
+          "api_secret": "your-api-secret"
+        }
+        ```
+        
+        Then subscribe to topics:
+        ```json
+        {
+          "action": "subscribe",
+          "topics": ["alerts", "devices"]
+        }
+        ```
+      tags:
+        - WebSockets
+      responses:
+        '101':
+          description: Switching protocols to WebSocket
+
+components:
+  securitySchemes:
+    apiKey:
+      type: apiKey
+      in: header
+      name: X-API-Key
+    apiKeySecret:
+      type: apiKey
+      in: header
+      name: X-API-Secret
+
+  responses:
+    BadRequest:
+      description: Bad request
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+    
+    Unauthorized:
+      description: Unauthorized
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+    
+    NotFound:
+      description: Resource not found
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+    
+    RateLimited:
+      description: Rate limit exceeded
+      headers:
+        X-RateLimit-Limit:
+          description: Rate limit ceiling for the given endpoint
+          schema:
+            type: integer
+        X-RateLimit-Remaining:
+          description: Number of requests left for the time window
+          schema:
+            type: integer
+        X-RateLimit-Reset:
+          description: Time at which the rate limit resets in UTC epoch seconds
+          schema:
+            type: integer
+        X-RateLimit-Retry-After:
+          description: Seconds to wait before retrying the request
+          schema:
+            type: integer
+        X-RateLimit-Type:
+          description: Type of rate limit (IP, user, token, or endpoint)
+          schema:
+            type: string
+      content:
+        application/json:
+          schema:
+            allOf:
+              - $ref: '#/components/schemas/Error'
+              - type: object
+                properties:
+                  retry_after:
+                    type: integer
+                    description: Seconds to wait before retrying the request
+
+  schemas:
+    Device:
+      type: object
+      properties:
+        id:
+          type: string
+          description: Unique identifier for the device
+        mac_address:
+          type: string
+          description: MAC address of the device
+          pattern: '^([0-9A-Fa-f]{2}[:-]){5}([0-9A-Fa-f]{2})$'
+        ip_address:
+          type: string
+          description: IP address of the device
+          format: ipv4
+        hostname:
+          type: string
+          description: Hostname of the device
+        last_seen:
+          type: string
+          format: date-time
+          description: Timestamp when the device was last seen
+        first_seen:
+          type: string
+          format: date-time
+          description: Timestamp when the device was first seen
+        attributes:
+          type: object
+          description: Additional custom attributes
+        created_at:
+          type: string
+          format: date-time
+          description: Timestamp when the device was created
+        updated_at:
+          type: string
+          format: date-time
+          description: Timestamp when the device was last updated
+      required:
+        - id
+        - mac_address
+    
+    DeviceCreate:
+      type: object
+      properties:
+        mac_address:
+          type: string
+          description: MAC address of the device
+          pattern: '^([0-9A-Fa-f]{2}[:-]){5}([0-9A-Fa-f]{2})$'
+        ip_address:
+          type: string
+          description: IP address of the device
+          format: ipv4
+        hostname:
+          type: string
+          description: Hostname of the device
+        attributes:
+          type: object
+          description: Additional custom attributes
+      required:
+        - mac_address
+    
+    DeviceUpdate:
+      type: object
+      properties:
+        ip_address:
+          type: string
+          description: IP address of the device
+          format: ipv4
+        hostname:
+          type: string
+          description: Hostname of the device
+        attributes:
+          type: object
+          description: Additional custom attributes
+    
+    Alert:
+      type: object
+      properties:
+        id:
+          type: string
+          description: Unique identifier for the alert
+        device_id:
+          type: string
+          description: ID of the device related to the alert
+        severity:
+          type: string
+          description: Severity level of the alert
+          enum: [low, medium, high, critical]
+        status:
+          type: string
+          description: Current status of the alert
+          enum: [open, acknowledged, resolved]
+        message:
+          type: string
+          description: Alert message
+        details:
+          type: object
+          description: Additional details about the alert
+        timestamp:
+          type: string
+          format: date-time
+          description: Timestamp when the alert was generated
+        acknowledged_at:
+          type: string
+          format: date-time
+          nullable: true
+          description: Timestamp when the alert was acknowledged
+        resolved_at:
+          type: string
+          format: date-time
+          nullable: true
+          description: Timestamp when the alert was resolved
+      required:
+        - id
+        - device_id
+        - severity
+        - status
+        - message
+        - timestamp
+    
+    Health:
+      type: object
+      properties:
+        status:
+          type: string
+          description: Health status
+          enum: [ok, degraded, unavailable]
+        version:
+          type: string
+          description: API version
+        uptime:
+          type: number
+          description: API uptime in seconds
+        rate_limits:
+          $ref: '#/components/schemas/RateLimitInfo'
+      required:
+        - status
+    
+    Stats:
+      type: object
+      properties:
+        devices:
+          type: object
+          properties:
+            total:
+              type: integer
+              description: Total number of devices
+            active:
+              type: integer
+              description: Number of active devices
+            inactive:
+              type: integer
+              description: Number of inactive devices
+        alerts:
+          type: object
+          properties:
+            total:
+              type: integer
+              description: Total number of alerts
+            open:
+              type: integer
+              description: Number of open alerts
+            acknowledged:
+              type: integer
+              description: Number of acknowledged alerts
+            resolved:
+              type: integer
+              description: Number of resolved alerts
+            by_severity:
+              type: object
+              properties:
+                low:
+                  type: integer
+                  description: Number of low severity alerts
+                medium:
+                  type: integer
+                  description: Number of medium severity alerts
+                high:
+                  type: integer
+                  description: Number of high severity alerts
+                critical:
+                  type: integer
+                  description: Number of critical severity alerts
+      required:
+        - devices
+        - alerts
+    
+    RateLimitInfo:
+      type: object
+      properties:
+        limit:
+          type: integer
+          description: Rate limit ceiling for the given endpoint
+        remaining:
+          type: integer
+          description: Number of requests left for the time window
+        reset:
+          type: integer
+          description: Time at which the rate limit resets in UTC epoch seconds
+        reset_in:
+          type: integer
+          description: Seconds until the rate limit resets
+        type:
+          type: string
+          description: Type of rate limit
+          enum: [IP, user, token, endpoint]
+      required:
+        - limit
+        - remaining
+        - reset
+        - reset_in
+        - type
+    
+    Error:
+      type: object
+      properties:
+        status:
+          type: integer
+          description: HTTP status code
+        code:
+          type: string
+          description: Error code
+        message:
+          type: string
+          description: Error message
+      required:
+        - status
+        - message 

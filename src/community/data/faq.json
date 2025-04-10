@@ -1,0 +1,27 @@
+{
+    "installation": {
+        "description": "To install ARP Guard, you can use pip: `pip install arp-guard`. For detailed installation instructions, including system requirements and dependencies, please refer to the installation guide.",
+        "short_description": "How to install ARP Guard",
+        "example": "```bash\npip install arp-guard\n```"
+    },
+    "configuration": {
+        "description": "ARP Guard can be configured using a YAML configuration file. The default location is `~/.arpguard/config.yaml`. You can also use command-line arguments for basic configuration.",
+        "short_description": "How to configure ARP Guard",
+        "example": "```yaml\n# Example config.yaml\ndetection:\n  sensitivity: medium\n  trusted_hosts:\n    - 192.168.1.1\n    - 192.168.1.2\n```"
+    },
+    "monitoring": {
+        "description": "To start monitoring your network, run `arpguard monitor`. This will start the detection module and begin analyzing network traffic for ARP spoofing attempts.",
+        "short_description": "How to start network monitoring",
+        "example": "```bash\narpguard monitor --interface eth0\n```"
+    },
+    "alerts": {
+        "description": "ARP Guard provides different types of alerts based on severity: Critical, High, Medium, and Low. Alerts can be configured to notify via email, Discord, or other supported channels.",
+        "short_description": "Understanding alerts and notifications",
+        "example": "```yaml\n# Alert configuration\nalerts:\n  email:\n    enabled: true\n    recipients:\n      - admin@example.com\n  discord:\n    enabled: true\n    webhook_url: your_webhook_url\n```"
+    },
+    "troubleshooting": {
+        "description": "Common issues include permission problems, network interface configuration, and false positives. Check the logs at `~/.arpguard/logs/` for detailed error information.",
+        "short_description": "Troubleshooting common issues",
+        "example": "```bash\n# Check logs\ntail -f ~/.arpguard/logs/arpguard.log\n```"
+    }
+} 

@@ -1,0 +1,43 @@
+from_version: "0.9.0"
+to_version: "1.0.0"
+created_at: "2023-04-22T16:00:00"
+description: "Migration from API v0.9.0 to v1.0.0"
+
+# Transformations to apply during migration
+transforms:
+  # Example: Rename a field
+  - type: "rename_field"
+    old_path: "config.api_version"
+    new_path: "config.version"
+    
+  # Example: Convert a type
+  - type: "convert_type"
+    path: "network.max_packet_size"
+    to_type: "integer"
+    
+  # Example: Add a new field with default value
+  - type: "add_field"
+    path: "security.brute_force_protection"
+    value: true
+    
+  # Example: Add a nested field structure
+  - type: "add_field"
+    path: "network.rate_limiting"
+    value:
+      enabled: true
+      max_requests: 100
+      window_seconds: 60
+      
+  # Example: Remove a deprecated field
+  - type: "remove_field"
+    path: "config.legacy_setting"
+    
+  # Example: Map a value from one format to another
+  - type: "map_value"
+    path: "security.log_level"
+    mapping:
+      "0": "debug"
+      "1": "info"
+      "2": "warning"
+      "3": "error"
+      "4": "critical" 

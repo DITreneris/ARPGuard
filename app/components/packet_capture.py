@@ -6,25 +6,29 @@ and analyzing network packets.
 """
 import time
 from datetime import datetime
-from typing import Optional, Dict, List, Callable
+from typing import Optional, Dict, List, Callable, Union
 import threading
 import os
 import json
+from queue import Queue
 
-try:
-    import pyshark
-    from scapy.all import sniff, wrpcap, rdpcap, Packet
-    from scapy.layers.inet import IP, TCP, UDP, ICMP
-    from scapy.layers.l2 import Ether, ARP
-    SCAPY_AVAILABLE = True
-except ImportError:
-    SCAPY_AVAILABLE = False
+import scapy.all as scapy
+from scapy.all import Packet, sniff, wrpcap, rdpcap
+from scapy.layers.inet import IP, TCP, UDP, ICMP
+from scapy.layers.l2 import Ether, ARP
 
 from app.utils.logger import get_logger
 from app.utils.config import get_config_manager
 
 # Initialize logger
 logger = get_logger(__name__)
+
+# Check if scapy is available by testing a basic function
+SCAPY_AVAILABLE = True
+try:
+    scapy.ls()
+except (ImportError, AttributeError):
+    SCAPY_AVAILABLE = False
 
 class PacketCapture:
     """

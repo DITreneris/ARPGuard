@@ -9,6 +9,8 @@ import yaml
 import jsonschema
 import ipaddress
 from pathlib import Path
+import logging
+from typing import Any, Dict, Optional
 
 # Define the configuration schema
 CONFIG_SCHEMA = {
@@ -73,42 +75,168 @@ CONFIG_SCHEMA = {
     "required": ["general", "scan", "monitor", "analyze", "export"]
 }
 
-# Default configuration
+# Configuration file path
+CONFIG_FILE = os.path.join(os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))), 'config.yaml')
+
+# Default configuration values
 DEFAULT_CONFIG = {
-    "general": {
-        "log_level": "INFO",
-        "log_file": "arpguard.log",
-        "color_output": True,
-        "progress_indicators": True
+    'general': {
+        'log_level': 'INFO',
+        'log_file': 'arpguard.log',
+        'color_output': True,
+        'progress_indicators': True
     },
-    "scan": {
-        "default_interface": "",  # Will be determined at runtime
-        "default_timeout": 2,
-        "default_ports": [22, 80, 443, 3389, 5900],
-        "default_subnet": "",  # Will be determined at runtime
-        "classify_devices": True,
-        "output_format": "table"
+    'scan': {
+        'default_interface': 'eth0',
+        'default_timeout': 3,
+        'default_ports': [22, 80, 443, 3389, 5900, 8080],
+        'default_subnet': '192.168.1.0/24',
+        'classify_devices': True,
+        'output_format': 'table'
     },
-    "monitor": {
-        "default_interface": "",  # Will be determined at runtime
-        "alert_level": "medium",
-        "check_interval": 2,
-        "output_format": "normal",
-        "known_devices_file": "known_devices.json"
+    'monitor': {
+        'default_interface': 'eth0',
+        'alert_level': 'medium',
+        'check_interval': 1,
+        'output_format': 'normal',
+        'known_devices_file': 'known_devices.json'
     },
-    "analyze": {
-        "pcap_dir": "captures",
-        "max_packets": 10000,
-        "filter_expression": "",
-        "output_format": "table"
+    'analyze': {
+        'pcap_dir': 'captures',
+        'max_packets': 20000,
+        'filter_expression': 'tcp or udp or arp',
+        'output_format': 'table'
     },
-    "export": {
-        "default_format": "json",
-        "default_dir": "exports",
-        "include_metadata": True
+    'export': {
+        'default_format': 'json',
+        'default_dir': 'exports',
+        'include_metadata': True
     }
 }
 
+# Global configuration object
+_config = None
+
+def load_config() -> Dict[str, Any]:
+    """Load configuration from file or use defaults."""
+    global _config
+    
+    if _config is not None:
+        return _config
+    
+    try:
+        if os.path.exists(CONFIG_FILE):
+            with open(CONFIG_FILE, 'r') as f:
+                config = yaml.safe_load(f)
+                print(f"Loaded configuration from {CONFIG_FILE}")
+                _config = config
+                return config
+    except Exception as e:
+        logging.error(f"Error loading configuration: {e}")
+    
+    print("Using default configuration")
+    _config = DEFAULT_CONFIG
+    return DEFAULT_CONFIG
+
+def get_config() -> Dict[str, Any]:
+    """Get the current configuration."""
+    global _config
+    
+    if _config is None:
+        return load_config()
+    
+    return _config
+
+def get_config_value(section: str, key: str, default: Any = None) -> Any:
+    """Get a specific configuration value."""
+    config = get_config()
+    return config.get(section, {}).get(key, default)
+
+def set_config_value(section: str, key: str, value: Any) -> bool:
+    """Set a specific configuration value."""
+    config = get_config()
+    
+    if section not in config:
+        config[section] = {}
+    
+    config[section][key] = value
+    return True
+
+def save_config(filepath: Optional[str] = None) -> bool:
+    """Save the current configuration to file."""
+    config = get_config()
+    
+    try:
+        save_path = filepath or CONFIG_FILE
+        with open(save_path, 'w') as f:
+            yaml.dump(config, f, default_flow_style=False)
+            print(f"Configuration saved to {save_path}")
+        return True
+    except Exception as e:
+        logging.error(f"Error saving configuration: {e}")
+        return False
+
+# Configuration manager class for CLI
+class ConfigManager:
+    def __init__(self):
+        self.config = get_config()
+    
+    def get(self, section: str, key: str, default: Any = None) -> Any:
+        """Get a configuration value with fallback to default."""
+        if section in self.config and key in self.config[section]:
+            return self.config[section][key]
+        return default
+    
+    def set(self, section: str, key: str, value: Any) -> bool:
+        """Set a configuration value."""
+        if section not in self.config:
+            self.config[section] = {}
+        
+        # Convert value to appropriate type based on default
+        if isinstance(value, str) and value.lower() in ('true', 'false'):
+            value = value.lower() == 'true'
+        elif isinstance(value, str) and value.isdigit():
+            value = int(value)
+        
+        self.config[section][key] = value
+        return True
+    
+    def save(self, filepath: Optional[str] = None) -> bool:
+        """Save the configuration."""
+        try:
+            save_path = filepath or CONFIG_FILE
+            with open(save_path, 'w') as f:
+                yaml.dump(self.config, f, default_flow_style=False)
+            return True
+        except Exception as e:
+            logging.error(f"Error saving configuration: {e}")
+            return False
+    
+    def load(self, filepath: Optional[str] = None) -> bool:
+        """Load configuration from a file."""
+        try:
+            load_path = filepath or CONFIG_FILE
+            if os.path.exists(load_path):
+                with open(load_path, 'r') as f:
+                    self.config = yaml.safe_load(f)
+                return True
+        except Exception as e:
+            logging.error(f"Error loading configuration: {e}")
+        return False
+    
+    def get_section(self, section: str) -> Dict[str, Any]:
+        """Get an entire configuration section."""
+        if section in self.config:
+            return self.config[section]
+        return {}
+    
+    def list_sections(self) -> list:
+        """List all configuration sections."""
+        return list(self.config.keys())
+
+def get_config_manager() -> ConfigManager:
+    """Get a configuration manager instance."""
+    return ConfigManager()
 
 class ConfigManager:
     """

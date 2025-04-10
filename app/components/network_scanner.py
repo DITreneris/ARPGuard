@@ -57,15 +57,15 @@ class NetworkScanner:
         try:
             gateway_ip, interface = self.get_default_gateway()
             if not gateway_ip or not interface:
-            logger.warning("Could not determine network range: No default gateway found")
-            return None
+                logger.warning("Could not determine network range: No default gateway found")
+                return None
             
             # Get the netmask for a more accurate subnet calculation
             addr_info = netifaces.ifaddresses(interface).get(netifaces.AF_INET, [])
             if not addr_info:
                 # Fallback to /24 if we can't determine the actual netmask
                 logger.warning(f"Could not determine netmask for interface {interface}, falling back to /24")
-        ip_parts = gateway_ip.split('.')
+                ip_parts = gateway_ip.split('.')
                 return f"{ip_parts[0]}.{ip_parts[1]}.{ip_parts[2]}.0/24"
                 
             # Use the first address info entry
@@ -81,8 +81,8 @@ class NetworkScanner:
             network_obj = ipaddress.IPv4Network(f"{ip}/{prefix_len}", strict=False)
             network_range = str(network_obj)
             
-        logger.debug(f"Network range: {network_range}")
-        return network_range
+            logger.debug(f"Network range: {network_range}")
+            return network_range
         except Exception as e:
             logger.error(f"Error determining network range: {e}")
             # Fallback to simple /24 subnet based on gateway

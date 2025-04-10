@@ -1,0 +1,33 @@
+# SIEM Integration Configuration
+
+# SIEM Server Settings
+siem_host: "localhost"  # Change to actual SIEM server hostname/IP
+siem_port: 514         # Default syslog port
+
+# Logging Settings
+log_level: "INFO"
+log_format: "%(asctime)s - %(levelname)s - %(message)s"
+
+# Event Forwarding Settings
+batch_size: 100        # Number of events to send in a batch
+retry_attempts: 3      # Number of retry attempts for failed events
+retry_delay: 1         # Delay between retries in seconds
+
+# Event Types and Severities
+event_types:
+  - arp_spoofing
+  - mac_spoofing
+  - gateway_impersonation
+  - arp_flood
+  - suspicious_arp
+
+severities:
+  - low
+  - medium
+  - high
+  - critical
+
+# Test Settings
+test_duration: 300     # Test duration in seconds
+test_event_count: 1000 # Total number of test events to generate
+test_success_threshold: 0.95  # Minimum success rate for test to pass 

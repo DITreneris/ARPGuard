@@ -2,11 +2,10 @@
 
 # Core Dependencies
 PyQt5>=5.15.9
-scapy>=2.5.0
+scapy>=2.4.5
 netifaces>=0.11.0
 requests>=2.31.0
 pyyaml>=6.0.1
-netaddr>=0.9.0
 psutil>=5.9.0
 
 # UI Components
@@ -22,7 +21,8 @@ dnslib>=0.9.19
 python-dateutil>=2.8.2
 pyfiglet>=1.0.0
 tabulate>=0.9.0
-colorama>=0.4.6
+colorama>=0.4.4
+termcolor>=2.0.1
 
 # Reporting
 jinja2>=3.1.0
@@ -77,10 +77,15 @@ plotly==5.15.0
 tqdm>=4.66.0
 psutil==5.9.5
 
-# Web/API (if needed)
+# Web/API
 fastapi==0.100.0
 uvicorn==0.23.1
 python-dotenv==1.0.0
+websockets>=10.4
+python-jose>=3.3.0
+pydantic>=2.0.0
+fastapi-jwt-auth>=0.5.0
+httpx>=0.24.0
 
 # Core dependencies
 mkdocs>=1.4.2
@@ -169,4 +174,45 @@ rich>=13.6.0
 typer>=0.7.0
 
 # Network analysis
-pcapy-ng>=1.0.9 
+pcapy-ng>=1.0.9
+
+# Core dependencies
+arpguard==1.0.0
+pyyaml>=5.4.1,<6.0.0
+netifaces>=0.10.9,<0.11.0
+psutil>=5.8.0,<6.0.0
+requests>=2.27.0,<2.28.0
+
+# UI components
+PyQt5==5.15.2
+pyqtgraph==0.12.4
+pyqtwebengine==5.15.2
+
+# Network analysis
+scapy>=2.4.5,<2.5.0
+numpy>=1.19.5,<1.20.0
+netaddr>=0.8.0,<0.9.0
+
+# Testing and development
+pytest>=6.2.5,<7.0.0
+pytest-cov>=2.12.1,<3.0.0
+mock>=4.0.3,<5.0.0
+
+# Core dependencies
+pyyaml>=5.4.1,<6.0.0
+netifaces>=0.10.9,<0.11.0
+psutil>=5.8.0,<6.0.0
+
+# UI components
+PyQt5==5.15.2
+pyqtgraph>=0.12.1
+pyqtwebengine>=5.15.2
+
+# Network analysis
+scapy>=2.4.5
+numpy>=1.19.5
+
+# Testing and development
+pytest>=6.2.5
+pytest-cov>=2.12.1
+mock>=4.0.3 

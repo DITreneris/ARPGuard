@@ -3,10 +3,13 @@ from unittest.mock import Mock, patch
 import sys
 from PyQt5.QtWidgets import QApplication, QTableWidgetItem
 from PyQt5.QtTest import QTest
-from PyQt5.QtCore import Qt, QPoint
+from PyQt5.QtCore import Qt, QPoint, QTimer
 from PyQt5.QtGui import QBrush
 from datetime import datetime
 import os
+from app.ui.components import (OptimizedTable, StatusIndicator, 
+                             OptimizedComboBox, ProgressIndicator, 
+                             OptimizedButton)
 
 # Mock the network-related modules
 mock_scapy = Mock()
@@ -846,6 +849,118 @@ class TestThreatIntelligenceView(unittest.TestCase):
         
         # Verify table is empty
         self.assertEqual(self.intel_view.ip_table.rowCount(), 0)
+
+class TestUIComponents(unittest.TestCase):
+    def setUp(self):
+        self.app = QApplication.instance()
+        if not self.app:
+            self.app = QApplication([])
+            
+    def test_optimized_table(self):
+        """Test optimized table functionality"""
+        table = OptimizedTable()
+        
+        # Test data update
+        data = [
+            {'id': 1, 'name': 'Item 1', 'value': 100},
+            {'id': 2, 'name': 'Item 2', 'value': 200},
+            {'id': 3, 'name': 'Item 3', 'value': 300}
+        ]
+        columns = ['id', 'name', 'value']
+        
+        table.update_data(data, columns)
+        
+        # Verify initial load
+        self.assertEqual(table.rowCount(), min(50, len(data)))
+        self.assertEqual(table.columnCount(), len(columns))
+        
+        # Verify data content
+        self.assertEqual(table.item(0, 0).text(), '1')
+        self.assertEqual(table.item(0, 1).text(), 'Item 1')
+        self.assertEqual(table.item(0, 2).text(), '100')
+        
+    def test_status_indicator(self):
+        """Test status indicator functionality"""
+        indicator = StatusIndicator()
+        
+        # Test status changes
+        test_cases = [
+            ('ok', 'Operation successful'),
+            ('warning', 'Please check configuration'),
+            ('error', 'Operation failed'),
+            ('info', 'Processing data')
+        ]
+        
+        for status, message in test_cases:
+            indicator.set_status(status, message)
+            self.assertEqual(indicator.status_label.text(), message)
+            
+    def test_optimized_combobox(self):
+        """Test optimized combo box functionality"""
+        combo = OptimizedComboBox()
+        
+        # Test item loading
+        items = [f'Item {i}' for i in range(1000)]
+        combo.add_items(items)
+        
+        # Verify initial load
+        self.assertLessEqual(combo.count(), 100)  # Should be limited
+        
+        # Test filtering
+        combo.lineEdit().setText('Item 1')
+        QTimer.singleShot(400, lambda: self._verify_filter(combo, 'Item 1'))
+        
+    def _verify_filter(self, combo, filter_text):
+        """Verify combo box filtering"""
+        for i in range(combo.count()):
+            self.assertIn(filter_text, combo.itemText(i).lower())
+            
+    def test_progress_indicator(self):
+        """Test progress indicator functionality"""
+        indicator = ProgressIndicator()
+        
+        # Test progress updates
+        indicator.set_progress(50, 'Halfway there')
+        self.assertEqual(indicator.status_label.text(), 'Halfway there')
+        
+        # Wait for animation
+        QTimer.singleShot(1000, lambda: self.assertEqual(
+            indicator.progress_bar.value(), 50
+        ))
+        
+    def test_optimized_button(self):
+        """Test optimized button functionality"""
+        button = OptimizedButton('Test Button')
+        
+        # Test loading state
+        button.set_loading(True)
+        self.assertFalse(button.isEnabled())
+        self.assertEqual(button.text(), 'Loading...')
+        
+        button.set_loading(False)
+        self.assertTrue(button.isEnabled())
+        self.assertEqual(button.text(), 'Test Button')
+        
+    def test_component_performance(self):
+        """Test component performance under load"""
+        table = OptimizedTable()
+        
+        # Test with large dataset
+        data = [{'id': i, 'name': f'Item {i}', 'value': i * 100} 
+                for i in range(10000)]
+        columns = ['id', 'name', 'value']
+        
+        # Measure update time
+        import time
+        start_time = time.time()
+        table.update_data(data, columns)
+        end_time = time.time()
+        
+        # Verify performance
+        self.assertLess(end_time - start_time, 1.0)  # Should complete within 1 second
+        
+        # Verify memory usage
+        self.assertLess(len(table._data_cache), 100)  # Should cache only visible items
 
 if __name__ == '__main__':
     unittest.main() 

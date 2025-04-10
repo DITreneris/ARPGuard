@@ -1,0 +1,150 @@
+.network-graph-wrapper {
+  position: relative;
+  background-color: #f5f7fa;
+  border-radius: 8px;
+  overflow: hidden;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+}
+
+.network-graph {
+  display: block;
+  width: 100%;
+  height: 100%;
+  min-height: 400px;
+}
+
+/* Node styling */
+.node {
+  cursor: pointer;
+  transition: transform 0.2s ease;
+}
+
+.node:hover {
+  transform: scale(1.2);
+}
+
+.node-circle {
+  stroke: #fff;
+  stroke-width: 1.5px;
+  transition: fill 0.3s ease, r 0.3s ease;
+}
+
+.node-circle.alert {
+  stroke-width: 2px;
+  stroke: rgba(255, 255, 255, 0.8);
+  filter: drop-shadow(0 0 3px rgba(255, 58, 51, 0.7));
+}
+
+/* Device icons */
+.device-icon {
+  font-size: 12px;
+  user-select: none;
+  pointer-events: none;
+}
+
+/* Device labels */
+.device-label {
+  font-size: 10px;
+  fill: #333;
+  user-select: none;
+  pointer-events: none;
+  font-family: Arial, sans-serif;
+}
+
+/* Link styling */
+.link {
+  stroke-opacity: 0.6;
+  transition: stroke 0.3s ease, stroke-width 0.3s ease;
+}
+
+.link.normal {
+  stroke-dasharray: none;
+}
+
+.link.alert {
+  stroke-dasharray: 5, 3;
+  filter: drop-shadow(0 0 2px rgba(255, 58, 51, 0.5));
+}
+
+/* Node details panel */
+.node-details {
+  position: absolute;
+  bottom: 10px;
+  right: 10px;
+  background: rgba(255, 255, 255, 0.95);
+  border-radius: 4px;
+  padding: 10px 15px;
+  box-shadow: 0 2px 10px rgba(0, 0, 0, 0.2);
+  max-width: 250px;
+  z-index: 100;
+  border-left: 4px solid #33A0FF;
+  animation: fadeIn 0.3s ease;
+}
+
+.node-details h3 {
+  margin: 0 0 8px 0;
+  font-size: 16px;
+  font-weight: 600;
+  color: #2c3e50;
+}
+
+.node-details p {
+  margin: 4px 0;
+  font-size: 12px;
+  color: #5c6c7c;
+}
+
+.alert-badge {
+  margin-top: 8px;
+  padding: 4px 8px;
+  background: #fff0f0;
+  border-radius: 4px;
+  color: #FF3A33;
+  font-size: 12px;
+  font-weight: 600;
+  display: inline-block;
+}
+
+/* Lite mode specific styling */
+.lite-mode .node-circle {
+  stroke-width: 1px;
+}
+
+.lite-mode .link {
+  stroke-opacity: 0.4;
+}
+
+.lite-mode .device-label {
+  font-size: 8px;
+}
+
+/* Animations */
+@keyframes fadeIn {
+  from { opacity: 0; transform: translateY(10px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+@keyframes pulse {
+  0% { filter: drop-shadow(0 0 2px rgba(255, 58, 51, 0.5)); }
+  50% { filter: drop-shadow(0 0 5px rgba(255, 58, 51, 0.8)); }
+  100% { filter: drop-shadow(0 0 2px rgba(255, 58, 51, 0.5)); }
+}
+
+.node-circle.alert {
+  animation: pulse 2s infinite;
+}
+
+/* Responsive adjustments */
+@media (max-width: 768px) {
+  .node-details {
+    position: fixed;
+    left: 10px;
+    right: 10px;
+    bottom: 10px;
+    max-width: none;
+  }
+
+  .device-label {
+    display: none;
+  }
+} 

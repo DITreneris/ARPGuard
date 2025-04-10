@@ -8,7 +8,12 @@ from PyQt5.QtGui import QColor, QPen, QBrush, QPainter, QFont, QPixmap, QIcon
 
 import math
 import random
-from typing import Dict, List, Any, Set, Tuple
+from typing import Dict, List, Any, Set, Tuple, Optional, Callable
+import threading
+import json
+import asyncio
+from datetime import datetime
+import time
 
 from app.utils.logger import get_logger
 
@@ -767,3 +772,300 @@ class NetworkTopologyView(QWidget):
     def set_attraction_force(self, force):
         """Set the attraction force between connected nodes."""
         self.attraction_force = force / 1000.0 
+
+class NetworkTopologyWebSocketHandler:
+    """Handles WebSocket connections for network topology data."""
+    
+    def __init__(self):
+        """Initialize the WebSocket handler."""
+        self.clients = set()
+        self.topology_data = {
+            "devices": [],
+            "connections": []
+        }
+        self.lock = threading.Lock()
+        self._topology_changed = False
+        self._update_thread = None
+        self._running = False
+    
+    def start_update_thread(self, update_interval: float = 1.0):
+        """Start the update thread that sends topology updates to clients.
+        
+        Args:
+            update_interval: How often to check for and send updates (in seconds)
+        """
+        if self._update_thread is not None and self._update_thread.is_alive():
+            return  # Already running
+        
+        self._running = True
+        self._update_thread = threading.Thread(
+            target=self._update_loop,
+            args=(update_interval,),
+            daemon=True
+        )
+        self._update_thread.start()
+    
+    def stop_update_thread(self):
+        """Stop the update thread."""
+        self._running = False
+        if self._update_thread is not None:
+            self._update_thread.join(timeout=2.0)
+            self._update_thread = None
+    
+    def _update_loop(self, interval: float):
+        """Background thread that sends updates to clients when the topology changes.
+        
+        Args:
+            interval: How often to check for changes (in seconds)
+        """
+        while self._running:
+            # Check if topology has changed
+            with self.lock:
+                if self._topology_changed and self.clients:
+                    # Create a copy of the topology data
+                    update_data = {
+                        "type": "topology_update",
+                        "timestamp": datetime.now().isoformat(),
+                        "data": {
+                            "devices": self.topology_data["devices"],
+                            "connections": self.topology_data["connections"]
+                        }
+                    }
+                    self._topology_changed = False
+                else:
+                    update_data = None
+            
+            # If there's an update, send it to all clients
+            if update_data is not None:
+                message = json.dumps(update_data)
+                for client in list(self.clients):
+                    try:
+                        # This is a synchronous operation in a background thread
+                        # In a real async environment, this would be handled differently
+                        asyncio.run(self._send_to_client(client, message))
+                    except Exception as e:
+                        logger.error(f"Error sending topology update to client: {e}")
+                        # Remove failed client
+                        self.clients.discard(client)
+            
+            # Sleep for the interval
+            time.sleep(interval)
+    
+    async def _send_to_client(self, client, message):
+        """Send a message to a client asynchronously.
+        
+        Args:
+            client: WebSocket client
+            message: Message to send
+        """
+        try:
+            await client.send_text(message)
+        except Exception as e:
+            logger.error(f"Error sending to client: {e}")
+            raise
+    
+    def add_client(self, client):
+        """Add a new WebSocket client.
+        
+        Args:
+            client: WebSocket client to add
+        """
+        with self.lock:
+            self.clients.add(client)
+            # Send the current topology to the new client
+            if self.topology_data["devices"]:
+                update_data = {
+                    "type": "topology_update",
+                    "timestamp": datetime.now().isoformat(),
+                    "data": {
+                        "devices": self.topology_data["devices"],
+                        "connections": self.topology_data["connections"]
+                    }
+                }
+                message = json.dumps(update_data)
+                # Schedule the async send
+                asyncio.create_task(self._send_to_client(client, message))
+    
+    def remove_client(self, client):
+        """Remove a WebSocket client.
+        
+        Args:
+            client: WebSocket client to remove
+        """
+        with self.lock:
+            self.clients.discard(client)
+    
+    def update_topology(self, devices, connections):
+        """Update the network topology data.
+        
+        Args:
+            devices: List of device data
+            connections: List of connection data
+        """
+        with self.lock:
+            self.topology_data["devices"] = devices
+            self.topology_data["connections"] = connections
+            self._topology_changed = True
+    
+    def add_device(self, device):
+        """Add a new device to the topology.
+        
+        Args:
+            device: Device data to add
+        """
+        with self.lock:
+            # Check if the device already exists
+            for i, existing_device in enumerate(self.topology_data["devices"]):
+                if existing_device["id"] == device["id"]:
+                    # Update the existing device
+                    self.topology_data["devices"][i] = device
+                    break
+            else:
+                # Device doesn't exist, add it
+                self.topology_data["devices"].append(device)
+            
+            self._topology_changed = True
+            
+            # Send immediate notification to clients
+            update_data = {
+                "type": "device_added",
+                "timestamp": datetime.now().isoformat(),
+                "data": device
+            }
+            message = json.dumps(update_data)
+            for client in list(self.clients):
+                try:
+                    asyncio.run(self._send_to_client(client, message))
+                except Exception:
+                    # Remove failed client
+                    self.clients.discard(client)
+    
+    def update_device(self, device_id, updates):
+        """Update an existing device.
+        
+        Args:
+            device_id: ID of the device to update
+            updates: Dictionary of field updates
+        """
+        with self.lock:
+            # Find the device
+            for i, device in enumerate(self.topology_data["devices"]):
+                if device["id"] == device_id:
+                    # Update the device
+                    self.topology_data["devices"][i].update(updates)
+                    updated_device = self.topology_data["devices"][i]
+                    self._topology_changed = True
+                    
+                    # Send immediate notification to clients
+                    update_data = {
+                        "type": "device_updated",
+                        "timestamp": datetime.now().isoformat(),
+                        "data": updated_device
+                    }
+                    message = json.dumps(update_data)
+                    for client in list(self.clients):
+                        try:
+                            asyncio.run(self._send_to_client(client, message))
+                        except Exception:
+                            # Remove failed client
+                            self.clients.discard(client)
+                    
+                    break
+    
+    def remove_device(self, device_id):
+        """Remove a device from the topology.
+        
+        Args:
+            device_id: ID of the device to remove
+        """
+        with self.lock:
+            # Remove the device
+            self.topology_data["devices"] = [
+                d for d in self.topology_data["devices"] if d["id"] != device_id
+            ]
+            
+            # Remove connections involving this device
+            self.topology_data["connections"] = [
+                c for c in self.topology_data["connections"] 
+                if c["source"] != device_id and c["target"] != device_id
+            ]
+            
+            self._topology_changed = True
+            
+            # Send immediate notification to clients
+            update_data = {
+                "type": "device_removed",
+                "timestamp": datetime.now().isoformat(),
+                "data": device_id
+            }
+            message = json.dumps(update_data)
+            for client in list(self.clients):
+                try:
+                    asyncio.run(self._send_to_client(client, message))
+                except Exception:
+                    # Remove failed client
+                    self.clients.discard(client)
+    
+    def add_connection(self, connection):
+        """Add a new connection to the topology.
+        
+        Args:
+            connection: Connection data to add
+        """
+        with self.lock:
+            # Check if the connection already exists
+            for i, existing_conn in enumerate(self.topology_data["connections"]):
+                if existing_conn["id"] == connection["id"]:
+                    # Update the existing connection
+                    self.topology_data["connections"][i] = connection
+                    break
+            else:
+                # Connection doesn't exist, add it
+                self.topology_data["connections"].append(connection)
+            
+            self._topology_changed = True
+            
+            # Send immediate notification to clients
+            update_data = {
+                "type": "connection_added",
+                "timestamp": datetime.now().isoformat(),
+                "data": connection
+            }
+            message = json.dumps(update_data)
+            for client in list(self.clients):
+                try:
+                    asyncio.run(self._send_to_client(client, message))
+                except Exception:
+                    # Remove failed client
+                    self.clients.discard(client)
+    
+    def remove_connection(self, connection_id):
+        """Remove a connection from the topology.
+        
+        Args:
+            connection_id: ID of the connection to remove
+        """
+        with self.lock:
+            # Remove the connection
+            self.topology_data["connections"] = [
+                c for c in self.topology_data["connections"] if c["id"] != connection_id
+            ]
+            
+            self._topology_changed = True
+            
+            # Send immediate notification to clients
+            update_data = {
+                "type": "connection_removed",
+                "timestamp": datetime.now().isoformat(),
+                "data": connection_id
+            }
+            message = json.dumps(update_data)
+            for client in list(self.clients):
+                try:
+                    asyncio.run(self._send_to_client(client, message))
+                except Exception:
+                    # Remove failed client
+                    self.clients.discard(client)
+
+# Create a global instance of the WebSocket handler
+topology_ws_handler = NetworkTopologyWebSocketHandler() 

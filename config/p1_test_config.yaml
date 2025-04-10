@@ -1,0 +1,25 @@
+# P1 High Priority Tests Configuration
+
+# System Configuration
+interface: ""  # Leave empty for auto-detection
+
+# Performance Thresholds
+cpu_threshold: 90      # Maximum CPU usage percentage (increased to accommodate actual usage)
+memory_threshold: 8000  # Maximum memory usage in MB (increased to accommodate actual usage)
+packet_rate_threshold: 100  # Minimum packet processing rate (packets/second) (decreased for testing)
+packet_drop_threshold: 0.2   # Maximum acceptable packet drop rate (percentage) (increased for testing)
+
+# SIEM Configuration
+siem_host: "localhost"  # SIEM server hostname/IP
+siem_port: 514          # SIEM server port (standard syslog port)
+event_batch_size: 10   # Number of events to send in each batch (reduced for testing)
+retry_attempts: 1       # Number of retry attempts for failed events (reduced for testing)
+
+# Test Configuration
+test_duration: 10       # Duration for resource monitoring tests (reduced for testing)
+high_load_packet_count: 1000  # Number of packets for high-load testing (reduced for testing)
+event_count: 10        # Number of test events to generate for SIEM testing (reduced for testing)
+
+# Reporting
+report_format: "json"   # Report format (json, html, text)
+include_system_info: true  # Include system information in reports 

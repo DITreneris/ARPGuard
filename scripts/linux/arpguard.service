@@ -1,0 +1,28 @@
+[Unit]
+Description=ARP Guard Protection Service
+Documentation=https://github.com/yourorg/arp-guard
+After=network.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+ExecStart=/usr/local/bin/arp-guard service run
+Restart=on-failure
+RestartSec=10
+KillMode=process
+KillSignal=SIGTERM
+StandardOutput=journal
+StandardError=journal
+SyslogIdentifier=arpguard
+User=root
+Group=root
+
+# Security hardening
+CapabilityBoundingSet=CAP_NET_ADMIN CAP_NET_RAW CAP_NET_BIND_SERVICE
+ProtectSystem=full
+ReadWritePaths=/var/log/arpguard /etc/arpguard
+PrivateTmp=true
+NoNewPrivileges=true
+
+[Install]
+WantedBy=multi-user.target 

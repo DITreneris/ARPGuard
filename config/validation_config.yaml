@@ -1,0 +1,70 @@
+# ARPGuard Deployment Validation Configuration
+
+# Network configuration
+network:
+  interfaces:
+    - Ethernet
+    - Wi-Fi
+  connectivity_targets:
+    - 8.8.8.8
+    - google.com
+
+# System services
+system:
+  services:
+    - BITS
+    - wuauserv
+    - MpsSvc
+
+# Security configuration
+security:
+  file_permissions:
+    config.yaml: "644"
+    logs/arpguard.log: "644"
+    scripts/run_validation.py: "755"
+
+# Performance thresholds
+performance:
+  cpu_threshold: 90
+  memory_threshold: 85
+
+# Logging configuration
+logging:
+  log_file: logs/validation.log
+
+# System Services
+required_services:
+  - "arpguard"
+  - "network"
+  - "firewalld"
+  - "rsyslog"
+
+required_dependencies:
+  - "network.target"
+  - "multi-user.target"
+  - "basic.target"
+
+# Security Configuration
+required_firewall_rules:
+  - "ACCEPT     all  --  anywhere             anywhere"
+  - "DROP       all  --  anywhere             anywhere"
+
+security_policies:
+  - "no_root_login"
+  - "password_policy"
+  - "file_integrity"
+
+# Performance Thresholds
+max_cpu_usage: 80.0
+max_memory_usage: 85.0
+
+max_network_metrics:
+  packet_loss: 1.0
+  latency: 100.0
+  bandwidth_utilization: 80.0
+
+# Report Configuration
+report_path: "/var/log/arpguard/validation_report.html"
+
+# Validation Timeout (seconds)
+validation_timeout: 300 

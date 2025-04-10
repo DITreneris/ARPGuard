@@ -1,115 +1,156 @@
-# Contributing to ARPGuard
+# Contributing to ARP Guard
 
-Thank you for considering contributing to ARPGuard! This document outlines the process for contributing to the project and provides guidelines to make the process smooth and effective.
+Thank you for your interest in contributing to ARP Guard! This document provides guidelines and instructions for contributing to the project.
 
 ## Code of Conduct
 
-By participating in this project, you are expected to uphold our Code of Conduct: be respectful, considerate, and constructive in all interactions.
-
-## How Can I Contribute?
-
-### Reporting Bugs
-
-- **Check existing issues** to see if the bug has already been reported
-- **Use the bug report template** if one is provided
-- **Include detailed information** about your environment (OS, Python version, etc.)
-- **Provide steps to reproduce** the issue
-- **Include screenshots or logs** if possible
-
-### Suggesting Enhancements
-
-- **Clearly describe the enhancement** and its expected benefits
-- **Provide examples and use cases** to illustrate the need
-- **Consider implementation details** if you can
-
-### Pull Requests
-
-1. **Fork the repository** to your GitHub account
-2. **Create a branch** for your feature or fix
-3. **Make your changes**, following the coding standards
-4. **Write or update tests** for your changes
-5. **Run the test suite** to ensure all tests pass
-6. **Submit a pull request** targeting the `main` branch
+By participating in this project, you agree to abide by our [Code of Conduct](CODE_OF_CONDUCT.md).
 
 ## Development Environment Setup
 
-1. Clone your fork of the repository:
-   ```
-   git clone https://github.com/yourusername/arpguard.git
-   cd arpguard
+### Prerequisites
+- Python 3.11 or higher
+- Git
+- Virtual environment (recommended)
+
+### Installation Steps
+1. Fork and clone the repository:
+   ```bash
+   git clone https://github.com/your-username/arp-guard.git
+   cd arp-guard
    ```
 
-2. Create a virtual environment:
-   ```
+2. Create and activate a virtual environment:
+   ```bash
    python -m venv venv
    source venv/bin/activate  # On Windows: venv\Scripts\activate
    ```
 
 3. Install development dependencies:
-   ```
-   pip install -r requirements.txt
-   pip install pytest pytest-cov pylint black
-   ```
-
-4. Set up pre-commit hooks:
-   ```
-   pip install pre-commit
-   pre-commit install
+   ```bash
+   pip install -r requirements-dev.txt
    ```
 
-## Coding Standards
+4. Install ARP Guard in development mode:
+   ```bash
+   pip install -e .
+   ```
 
-- Follow [PEP 8](https://www.python.org/dev/peps/pep-0008/) for Python code
-- Add type hints to all new functions and methods
-- Write docstrings for all modules, classes, and functions
-- Keep line length to 100 characters or less
+## Code Style Guidelines
+
+We follow PEP 8 with some additional guidelines:
+
+- Use type hints for all function parameters and return values
+- Document all public functions and classes with docstrings
+- Keep functions focused and small (ideally under 50 lines)
 - Use meaningful variable and function names
+- Add comments for complex logic
+
+### Running Code Style Checks
+```bash
+# Run flake8
+flake8 src tests
+
+# Run black for code formatting
+black src tests
+
+# Run isort for import sorting
+isort src tests
+```
 
 ## Testing
 
-- Write unit tests for all new functionality
-- Ensure all tests pass before submitting a pull request
-- Aim for high test coverage (>80%)
+### Running Tests
+```bash
+# Run all tests
+pytest
 
-To run tests:
+# Run tests with coverage
+pytest --cov=src tests/
+
+# Run specific test file
+pytest tests/test_detection.py
 ```
-python run.py test --coverage
+
+### Writing Tests
+- Follow pytest conventions
+- Use descriptive test names
+- Include docstrings explaining test purpose
+- Use fixtures for common setup
+- Mock external dependencies
+
+## Pull Request Process
+
+1. Create a new branch for your feature/fix:
+   ```bash
+   git checkout -b feature/your-feature-name
+   ```
+
+2. Make your changes and commit them:
+   ```bash
+   git commit -m "feat: add new feature"
+   ```
+
+3. Push to your fork:
+   ```bash
+   git push origin feature/your-feature-name
+   ```
+
+4. Create a Pull Request:
+   - Fill out the PR template
+   - Link related issues
+   - Request review from maintainers
+
+### Commit Message Format
 ```
+<type>: <description>
+
+[optional body]
+
+[optional footer]
+```
+
+Types:
+- feat: New feature
+- fix: Bug fix
+- docs: Documentation changes
+- style: Code style changes
+- refactor: Code refactoring
+- test: Test changes
+- chore: Maintenance tasks
 
 ## Documentation
 
-- Update documentation for any changed functionality
-- Document new features thoroughly
+### Writing Documentation
 - Use clear, concise language
+- Include code examples where helpful
+- Keep documentation up to date with code changes
+- Use proper formatting and structure
 
-## Commit Messages
+### Building Documentation
+```bash
+# Install documentation dependencies
+pip install -r requirements-docs.txt
 
-- Use the present tense ("Add feature" not "Added feature")
-- Use the imperative mood ("Fix bug" not "Fixes bug")
-- Limit the first line to 72 characters or less
-- Reference issues and pull requests after the first line
-- Consider using the following format:
-  ```
-  Type(scope): Short description
+# Build documentation
+cd docs
+make html
+```
 
-  Longer description if necessary
+## Security
 
-  Fixes #123
-  ```
-  where "Type" can be one of: feat, fix, docs, style, refactor, test, chore
+- Report security vulnerabilities privately to security@arpguard.com
+- Do not include sensitive information in issues or PRs
+- Follow secure coding practices
+- Review security implications of changes
 
-## Review Process
+## Getting Help
 
-1. All pull requests require review before merging
-2. Address any requested changes
-3. Ensure CI tests pass
-4. Once approved, a maintainer will merge your changes
+- Check the [documentation](docs/)
+- Search existing issues
+- Join our [Discord community](https://discord.gg/arpguard)
+- Create a new issue if needed
 
-## Questions?
+## License
 
-If you have any questions or need help, you can:
-- Open an issue for discussion
-- Contact the maintainers directly
-- Join our community channels
-
-Thank you for contributing to ARPGuard! 
+By contributing to ARP Guard, you agree that your contributions will be licensed under the project's [LICENSE](LICENSE) file. 

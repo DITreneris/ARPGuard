@@ -11,6 +11,7 @@ from PyQt5.QtWidgets import (
 )
 from PyQt5.QtCore import Qt, pyqtSignal
 from PyQt5.QtGui import QColor, QBrush, QFont
+from PyQt5.QtTest import QTest
 
 # Mock threat intelligence service
 class MockThreatIntelligence:
@@ -175,187 +176,371 @@ class TestThreatIntelligenceView(unittest.TestCase):
         cls.app = QApplication(sys.argv)
         
     def setUp(self):
-        self.intel_view = ThreatIntelligenceView()
+        self.threat_view = ThreatIntelligenceView()
+        self.mock_intelligence = MagicMock()
+        self.threat_view.intelligence = self.mock_intelligence
         
     def tearDown(self):
-        self.intel_view.close()
-        self.intel_view.deleteLater()
+        self.threat_view.close()
+        self.threat_view.deleteLater()
         
     def test_initialization(self):
         """Test if threat intelligence view initializes correctly"""
-        self.assertIsNotNone(self.intel_view)
-        self.assertIsNotNone(self.intel_view.ip_table)
-        self.assertIsNotNone(self.intel_view.domain_table)
-        self.assertIsNotNone(self.intel_view.signature_table)
-        self.assertIsNotNone(self.intel_view.update_button)
-        self.assertIsNotNone(self.intel_view.search_input)
+        self.assertIsNotNone(self.threat_view)
+        self.assertIsNotNone(self.threat_view.ip_table)
+        self.assertIsNotNone(self.threat_view.domain_table)
+        self.assertIsNotNone(self.threat_view.signature_table)
+        self.assertIsNotNone(self.threat_view.update_button)
+        self.assertIsNotNone(self.threat_view.search_input)
         
     def test_threat_data_display(self):
-        """Test if threat data is properly displayed in tables"""
-        self.intel_view.refresh_display()
+        """Test threat data display functionality"""
+        # Mock threat data
+        test_threat = {
+            "id": "threat-001",
+            "type": "Malware",
+            "severity": "high",
+            "source": "External",
+            "detection_time": datetime.now(),
+            "description": "New malware variant detected",
+            "affected_systems": ["192.168.1.10", "192.168.1.15"],
+            "recommendations": ["Update antivirus", "Scan affected systems"]
+        }
         
-        # Check IP table
-        self.assertEqual(self.intel_view.ip_table.rowCount(), 2)
-        self.assertEqual(self.intel_view.ip_table.item(0, 0).text(), "1.2.3.4")
-        self.assertEqual(self.intel_view.ip_table.item(0, 1).text(), "90")
+        # Add threat to view
+        self.threat_view.add_threat(test_threat)
         
-        # Check domain table
-        self.assertEqual(self.intel_view.domain_table.rowCount(), 1)
-        self.assertEqual(self.intel_view.domain_table.item(0, 0).text(), "malicious.com")
-        self.assertEqual(self.intel_view.domain_table.item(0, 1).text(), "85")
+        # Verify threat was added
+        self.assertEqual(self.threat_view.threat_table.rowCount(), 1)
+        self.assertEqual(self.threat_view.threat_table.item(0, 1).text(), "Malware")
         
-        # Check signature table
-        self.assertEqual(self.intel_view.signature_table.rowCount(), 1)
-        self.assertEqual(self.intel_view.signature_table.item(0, 0).text(), "ET-1234")
-        self.assertEqual(self.intel_view.signature_table.item(0, 2).text(), "critical")
+    def test_threat_filtering(self):
+        """Test threat filtering functionality"""
+        # Add multiple threats
+        test_threats = [
+            {
+                "id": "threat-001",
+                "type": "Malware",
+                "severity": "high",
+                "source": "External",
+                "detection_time": datetime.now(),
+                "description": "Malware threat",
+                "affected_systems": ["192.168.1.10"],
+                "recommendations": ["Update antivirus"]
+            },
+            {
+                "id": "threat-002",
+                "type": "Phishing",
+                "severity": "medium",
+                "source": "Email",
+                "detection_time": datetime.now(),
+                "description": "Phishing attempt",
+                "affected_systems": ["192.168.1.15"],
+                "recommendations": ["User training"]
+            }
+        ]
         
-    def test_threat_search(self):
-        """Test threat search functionality"""
-        self.intel_view.refresh_display()
+        for threat in test_threats:
+            self.threat_view.add_threat(threat)
+            
+        # Set filter to show only high severity threats
+        self.threat_view.severity_combo.setCurrentText("High")
+        self.threat_view.filter_threats()
         
-        # Test IP search
-        self.intel_view.search_input.setText("1.2.3.4")
-        self.intel_view.search_threats()
-        visible_rows = sum(1 for i in range(self.intel_view.ip_table.rowCount())
-                         if not self.intel_view.ip_table.isRowHidden(i))
+        # Verify filter
+        visible_rows = sum(1 for i in range(self.threat_view.threat_table.rowCount())
+                         if not self.threat_view.threat_table.isRowHidden(i))
         self.assertEqual(visible_rows, 1)
         
-        # Test domain search
-        self.intel_view.search_input.setText("malicious.com")
-        self.intel_view.search_threats()
-        visible_rows = sum(1 for i in range(self.intel_view.domain_table.rowCount())
-                         if not self.intel_view.domain_table.isRowHidden(i))
-        self.assertEqual(visible_rows, 1)
+    def test_threat_details(self):
+        """Test threat details display"""
+        # Mock threat data
+        test_threat = {
+            "id": "threat-001",
+            "type": "Malware",
+            "severity": "high",
+            "source": "External",
+            "detection_time": datetime.now(),
+            "description": "Detailed malware description",
+            "affected_systems": ["192.168.1.10", "192.168.1.15"],
+            "recommendations": ["Update antivirus", "Scan systems", "Isolate affected machines"]
+        }
+        
+        # Add threat and select it
+        self.threat_view.add_threat(test_threat)
+        self.threat_view.threat_table.selectRow(0)
+        
+        # Verify details are displayed
+        self.assertEqual(self.threat_view.description_label.text(), "Detailed malware description")
+        self.assertEqual(len(self.threat_view.recommendations_list), 3)
         
     def test_threat_update(self):
-        """Test threat data update functionality"""
-        with patch.object(self.intel_view.threat_intel, 'get_malicious_ips') as mock_ips:
-            mock_ips.return_value = [
-                {
-                    "ip": "9.8.7.6",
-                    "score": 95,
-                    "categories": ["malware"],
-                    "source": "AbuseIPDB",
-                    "last_seen": datetime.now()
-                }
-            ]
+        """Test real-time threat updates"""
+        # Initial threat
+        test_threat = {
+            "id": "threat-001",
+            "type": "Malware",
+            "severity": "high",
+            "source": "External",
+            "detection_time": datetime.now(),
+            "description": "Initial threat",
+            "affected_systems": ["192.168.1.10"],
+            "recommendations": ["Initial action"]
+        }
+        
+        self.threat_view.add_threat(test_threat)
+        
+        # Updated threat
+        updated_threat = {
+            "id": "threat-001",
+            "type": "Malware",
+            "severity": "critical",
+            "source": "External",
+            "detection_time": datetime.now(),
+            "description": "Updated threat",
+            "affected_systems": ["192.168.1.10", "192.168.1.15"],
+            "recommendations": ["Updated action 1", "Updated action 2"]
+        }
+        
+        # Update threat
+        self.threat_view.update_threat(updated_threat)
+        
+        # Verify update
+        self.assertEqual(self.threat_view.threat_table.item(0, 2).text(), "Critical")
+        self.assertEqual(self.threat_view.description_label.text(), "Updated threat")
+        self.assertEqual(len(self.threat_view.recommendations_list), 2)
+        
+    def test_performance(self):
+        """Test performance with multiple threats"""
+        # Generate 100 test threats
+        test_threats = [
+            {
+                "id": f"threat-{i}",
+                "type": "Malware",
+                "severity": "high",
+                "source": "External",
+                "detection_time": datetime.now(),
+                "description": f"Threat {i}",
+                "affected_systems": [f"192.168.1.{i+10}"],
+                "recommendations": ["Action 1", "Action 2"]
+            } for i in range(100)
+        ]
+        
+        # Add threats and measure time
+        start_time = datetime.now()
+        for threat in test_threats:
+            self.threat_view.add_threat(threat)
+        end_time = datetime.now()
+        
+        # Calculate processing time
+        processing_time = (end_time - start_time).total_seconds()
+        
+        # Verify all threats were added
+        self.assertEqual(self.threat_view.threat_table.rowCount(), 100)
+        
+        # Verify performance (should process 100 threats in less than 1 second)
+        self.assertLess(processing_time, 1.0)
+        
+    def test_export_functionality(self):
+        """Test the export functionality for threat data"""
+        # Add test threats
+        test_threats = [
+            {
+                "id": "threat-001",
+                "type": "Malware",
+                "severity": "high",
+                "source": "External",
+                "detection_time": datetime.now(),
+                "description": "Test malware",
+                "affected_systems": ["192.168.1.10"],
+                "recommendations": ["Update antivirus"]
+            }
+        ]
+        
+        for threat in test_threats:
+            self.threat_view.add_threat(threat)
             
-            self.intel_view.refresh_display()
-            self.assertEqual(self.intel_view.ip_table.rowCount(), 1)
-            self.assertEqual(self.intel_view.ip_table.item(0, 0).text(), "9.8.7.6")
-            self.assertEqual(self.intel_view.ip_table.item(0, 1).text(), "95")
-            
-    def test_error_handling(self):
-        """Test error handling in threat intelligence operations"""
-        # Test database error
-        with patch.object(self.intel_view.threat_intel, 'get_malicious_ips',
-                         side_effect=Exception("Database error")):
-            self.intel_view.refresh_display()
-            self.assertEqual(self.intel_view.ip_table.rowCount(), 0)
-            
-        # Test invalid data format
-        with patch.object(self.intel_view.threat_intel, 'get_malicious_domains',
-                         return_value=[{"invalid": "data"}]):
-            self.intel_view.refresh_display()
-            self.assertEqual(self.intel_view.domain_table.rowCount(), 0)
-
-    def test_specific_scenarios(self):
-        """Test specific threat intelligence scenarios"""
-        # Test high severity IP with multiple categories
-        with patch.object(self.intel_view.threat_intel, 'get_malicious_ips') as mock_ips:
-            mock_ips.return_value = [{
-                "ip": "10.0.0.1",
-                "score": 100,
-                "categories": ["malware", "c2", "phishing", "scanner"],
-                "source": "Multiple",
-                "last_seen": datetime.now()
-            }]
-            self.intel_view.refresh_display()
-            self.assertEqual(self.intel_view.ip_table.rowCount(), 1)
-            self.assertEqual(self.intel_view.ip_table.item(0, 1).text(), "100")
-            self.assertEqual(len(self.intel_view.ip_table.item(0, 2).text().split(", ")), 4)
-
-        # Test domain with historical data
-        with patch.object(self.intel_view.threat_intel, 'get_malicious_domains') as mock_domains:
-            mock_domains.return_value = [{
-                "domain": "historical-threat.com",
-                "score": 75,
-                "categories": ["historical"],
-                "source": "Historical DB",
-                "last_seen": datetime(2023, 1, 1)
-            }]
-            self.intel_view.refresh_display()
-            self.assertEqual(self.intel_view.domain_table.item(0, 0).text(), "historical-threat.com")
-            self.assertIn("2023", self.intel_view.domain_table.item(0, 4).text())
-
-    def test_data_export(self):
-        """Test threat data export functionality"""
         # Test CSV export
         with patch('builtins.open', unittest.mock.mock_open()) as mock_file:
-            self.intel_view.export_to_csv("test_export.csv")
+            self.threat_view.export_to_csv("test_export.csv")
             mock_file.assert_called_once_with("test_export.csv", "w", newline='')
             
         # Test JSON export
         with patch('builtins.open', unittest.mock.mock_open()) as mock_file:
-            self.intel_view.export_to_json("test_export.json")
+            self.threat_view.export_to_json("test_export.json")
             mock_file.assert_called_once_with("test_export.json", "w")
-
-    def test_advanced_filtering(self):
-        """Test advanced filtering capabilities"""
-        # Test score range filtering
-        self.intel_view.min_score_spinbox.setValue(80)
-        self.intel_view.max_score_spinbox.setValue(100)
-        self.intel_view.filter_threats()
-        visible_rows = sum(1 for i in range(self.intel_view.ip_table.rowCount())
-                         if not self.intel_view.ip_table.isRowHidden(i))
-        self.assertEqual(visible_rows, 1)  # Only the IP with score 90 should be visible
-
-        # Test category filtering
-        self.intel_view.category_filter.addItem("malware")
-        self.intel_view.filter_threats()
-        visible_rows = sum(1 for i in range(self.intel_view.ip_table.rowCount())
-                         if not self.intel_view.ip_table.isRowHidden(i))
-        self.assertEqual(visible_rows, 1)  # Only the IP with malware category should be visible
-
-        # Test source filtering
-        self.intel_view.source_filter.addItem("VirusTotal")
-        self.intel_view.filter_threats()
-        visible_rows = sum(1 for i in range(self.intel_view.domain_table.rowCount())
-                         if not self.intel_view.domain_table.isRowHidden(i))
-        self.assertEqual(visible_rows, 1)  # Only the domain from VirusTotal should be visible
-
-    def test_performance_metrics(self):
-        """Test performance metrics and statistics"""
-        # Test threat statistics calculation
-        stats = self.intel_view.calculate_threat_statistics()
-        self.assertEqual(stats["total_ips"], 2)
-        self.assertEqual(stats["total_domains"], 1)
-        self.assertEqual(stats["total_signatures"], 1)
-        self.assertEqual(stats["average_ip_score"], 80)
-        self.assertEqual(stats["highest_severity"], "critical")
-
-        # Test update frequency tracking
-        self.intel_view.refresh_display()
-        self.intel_view.refresh_display()
-        self.assertEqual(self.intel_view.update_count, 2)
-        self.assertLessEqual(self.intel_view.last_update_duration, 1.0)  # Should complete within 1 second
-
-    def test_integration_scenarios(self):
-        """Test integration with other components"""
-        # Test threat alert generation
-        with patch.object(self.intel_view, 'status_changed') as mock_signal:
-            self.intel_view.check_for_new_threats()
-            mock_signal.emit.assert_called_once()
-
-        # Test threat correlation
-        with patch.object(self.intel_view, 'threat_data_updated') as mock_signal:
-            self.intel_view.correlate_threats()
-            mock_signal.emit.assert_called_once()
-
-        # Test threat intelligence sharing
-        with patch.object(self.intel_view, 'share_threat_intelligence') as mock_share:
-            self.intel_view.share_threat_intelligence("partner_id")
-            mock_share.assert_called_once_with("partner_id")
+            
+    def test_threat_history(self):
+        """Test the threat history functionality"""
+        # Add initial threat
+        test_threat = {
+            "id": "threat-001",
+            "type": "Malware",
+            "severity": "medium",
+            "source": "External",
+            "detection_time": datetime.now(),
+            "description": "Initial detection",
+            "affected_systems": ["192.168.1.10"],
+            "recommendations": ["Initial action"]
+        }
+        
+        self.threat_view.add_threat(test_threat)
+        
+        # Get history before updates
+        initial_history = self.threat_view.get_threat_history("threat-001")
+        self.assertEqual(len(initial_history), 1)
+        
+        # Update threat multiple times
+        for i in range(3):
+            updated_threat = test_threat.copy()
+            updated_threat["severity"] = ["medium", "high", "critical"][i]
+            updated_threat["description"] = f"Update {i+1}"
+            self.threat_view.update_threat(updated_threat)
+            
+        # Get history after updates
+        final_history = self.threat_view.get_threat_history("threat-001")
+        self.assertEqual(len(final_history), 4)  # Initial + 3 updates
+        self.assertEqual(final_history[-1]["severity"], "critical")
+        
+    def test_threat_correlation(self):
+        """Test threat correlation functionality"""
+        # Add multiple related threats
+        test_threats = [
+            {
+                "id": "threat-001",
+                "type": "Malware",
+                "severity": "high",
+                "source": "External",
+                "detection_time": datetime.now(),
+                "description": "Malware on system 1",
+                "affected_systems": ["192.168.1.10"],
+                "recommendations": ["Update antivirus"]
+            },
+            {
+                "id": "threat-002",
+                "type": "Exfiltration",
+                "severity": "critical",
+                "source": "Internal",
+                "detection_time": datetime.now(),
+                "description": "Data exfiltration from system 1",
+                "affected_systems": ["192.168.1.10"],
+                "recommendations": ["Isolate system"]
+            }
+        ]
+        
+        for threat in test_threats:
+            self.threat_view.add_threat(threat)
+            
+        # Run correlation
+        with patch.object(self.threat_view, 'threat_correlated') as mock_signal:
+            correlated = self.threat_view.correlate_threats()
+            self.assertTrue(correlated)
+            self.assertEqual(mock_signal.emit.call_count, 1)
+            
+        # Check correlation results
+        correlation_results = self.threat_view.get_correlation_results()
+        self.assertEqual(len(correlation_results), 1)
+        self.assertIn("threat-001", correlation_results[0]["related_threats"])
+        self.assertIn("threat-002", correlation_results[0]["related_threats"])
+        
+    def test_search_functionality(self):
+        """Test the search functionality for threats"""
+        # Add multiple threats
+        test_threats = [
+            {
+                "id": "threat-001",
+                "type": "Malware",
+                "severity": "high",
+                "source": "External",
+                "detection_time": datetime.now(),
+                "description": "Ransomware attack",
+                "affected_systems": ["192.168.1.10"],
+                "recommendations": ["Update antivirus"]
+            },
+            {
+                "id": "threat-002",
+                "type": "Phishing",
+                "severity": "medium",
+                "source": "Email",
+                "detection_time": datetime.now(),
+                "description": "Credential phishing campaign",
+                "affected_systems": ["192.168.1.15"],
+                "recommendations": ["User training"]
+            }
+        ]
+        
+        for threat in test_threats:
+            self.threat_view.add_threat(threat)
+            
+        # Test search by description
+        self.threat_view.search_input.setText("Ransomware")
+        self.threat_view.search_threats()
+        
+        # Verify search results
+        visible_rows = sum(1 for i in range(self.threat_view.threat_table.rowCount())
+                         if not self.threat_view.threat_table.isRowHidden(i))
+        self.assertEqual(visible_rows, 1)
+        
+        # Clear search
+        self.threat_view.search_input.clear()
+        self.threat_view.search_threats()
+        
+        # Verify all threats visible again
+        visible_rows = sum(1 for i in range(self.threat_view.threat_table.rowCount())
+                         if not self.threat_view.threat_table.isRowHidden(i))
+        self.assertEqual(visible_rows, 2)
+        
+    def test_threat_scoring(self):
+        """Test threat scoring and prioritization"""
+        # Add threats with different severities
+        test_threats = [
+            {
+                "id": "threat-001",
+                "type": "Malware",
+                "severity": "low",
+                "source": "External",
+                "detection_time": datetime.now(),
+                "description": "Low severity threat",
+                "affected_systems": ["192.168.1.10"],
+                "recommendations": ["Monitor"]
+            },
+            {
+                "id": "threat-002",
+                "type": "Phishing",
+                "severity": "medium",
+                "source": "Email",
+                "detection_time": datetime.now(),
+                "description": "Medium severity threat",
+                "affected_systems": ["192.168.1.15"],
+                "recommendations": ["User training"]
+            },
+            {
+                "id": "threat-003",
+                "type": "Ransomware",
+                "severity": "critical",
+                "source": "External",
+                "detection_time": datetime.now(),
+                "description": "Critical severity threat",
+                "affected_systems": ["192.168.1.20"],
+                "recommendations": ["Isolate system"]
+            }
+        ]
+        
+        for threat in test_threats:
+            self.threat_view.add_threat(threat)
+            
+        # Test prioritization functionality
+        self.threat_view.prioritize_threats()
+        
+        # Verify threats are sorted by severity
+        self.assertEqual(self.threat_view.threat_table.item(0, 0).text(), "threat-003")  # Critical first
+        self.assertEqual(self.threat_view.threat_table.item(1, 0).text(), "threat-002")  # Medium second
+        self.assertEqual(self.threat_view.threat_table.item(2, 0).text(), "threat-001")  # Low last
+        
+        # Calculate threat score
+        threat_scores = self.threat_view.calculate_threat_scores()
+        self.assertGreater(threat_scores["threat-003"], threat_scores["threat-002"])
+        self.assertGreater(threat_scores["threat-002"], threat_scores["threat-001"])
 
 if __name__ == '__main__':
     unittest.main() 

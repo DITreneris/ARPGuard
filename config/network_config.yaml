@@ -1,0 +1,36 @@
+# ARP Guard Network Configuration
+# This file contains network-related settings for ARP Guard
+
+# Primary network interface to monitor
+primary_interface: "eth0"  # Will be auto-detected on first run
+
+# Interface-specific settings
+interfaces:
+  eth0:
+    name: "eth0"
+    is_monitoring: true
+    promiscuous_mode: true
+    packet_buffer_size: 2048
+    packet_timeout: 1.0
+    mtu: 1500
+    is_active: true
+    metadata:
+      description: "Primary Ethernet Interface"
+      priority: 1
+
+# Monitoring settings
+monitoring:
+  monitoring_mode: "promiscuous"  # Options: promiscuous, passive, active
+  capture_arp_only: true
+  detect_ip_conflicts: true
+  detect_mac_spoofing: true
+  max_packets_per_scan: 5000
+  scan_interval_seconds: 5.0
+  adapter_reset_on_error: false
+  filter_string: "arp"  # Default pcap filter string
+
+# Advanced settings
+allow_ip_forwarding: false
+multi_interface_mode: false
+fallback_interfaces: []
+config_version: "1.0" 

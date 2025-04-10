@@ -1,0 +1,185 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>ARP Guard Demo Dashboard</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link href="{{ url_for('static', path='/css/dashboard.css') }}" rel="stylesheet">
+</head>
+<body>
+    <div class="container-fluid">
+        <div class="row">
+            <!-- Sidebar -->
+            <div class="col-md-3 col-lg-2 d-md-block bg-dark sidebar collapse">
+                <div class="position-sticky pt-3">
+                    <h6 class="sidebar-heading px-3 mt-4 mb-1 text-muted">
+                        <span>Navigation</span>
+                    </h6>
+                    <ul class="nav flex-column">
+                        <li class="nav-item">
+                            <a class="nav-link active" href="#" data-target="overview">
+                                Overview
+                            </a>
+                        </li>
+                        <li class="nav-item">
+                            <a class="nav-link" href="#" data-target="network">
+                                Network View
+                            </a>
+                        </li>
+                        <li class="nav-item">
+                            <a class="nav-link" href="#" data-target="alerts">
+                                Alerts
+                            </a>
+                        </li>
+                        <li class="nav-item">
+                            <a class="nav-link" href="#" data-target="metrics">
+                                Metrics
+                            </a>
+                        </li>
+                    </ul>
+                </div>
+            </div>
+
+            <!-- Main content -->
+            <main class="col-md-9 ms-sm-auto col-lg-10 px-md-4">
+                <div class="d-flex justify-content-between flex-wrap flex-md-nowrap align-items-center pt-3 pb-2 mb-3 border-bottom">
+                    <h1 class="h2">ARP Guard Demo Dashboard</h1>
+                    <div class="btn-toolbar mb-2 mb-md-0">
+                        <div class="btn-group me-2">
+                            <button type="button" class="btn btn-sm btn-outline-secondary" id="start-demo">
+                                Start Demo
+                            </button>
+                            <button type="button" class="btn btn-sm btn-outline-secondary" id="stop-demo">
+                                Stop Demo
+                            </button>
+                        </div>
+                        <div class="me-2">
+                            <span id="connection-status" class="badge bg-secondary">Disconnected</span>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Overview Section -->
+                <div class="dashboard-section" id="overview">
+                    <div class="row">
+                        <div class="col-md-4">
+                            <div class="card">
+                                <div class="card-body">
+                                    <h5 class="card-title">System Status</h5>
+                                    <div class="mb-3">
+                                        <label>CPU Usage</label>
+                                        <div class="progress">
+                                            <div id="cpu-progress" class="progress-bar" role="progressbar" style="width: 0%"></div>
+                                        </div>
+                                        <span id="cpu-usage">0%</span>
+                                    </div>
+                                    <div class="mb-3">
+                                        <label>Memory Usage</label>
+                                        <div class="progress">
+                                            <div id="memory-progress" class="progress-bar" role="progressbar" style="width: 0%"></div>
+                                        </div>
+                                        <span id="memory-usage">0%</span>
+                                    </div>
+                                    <div class="mb-3">
+                                        <label>Disk Usage</label>
+                                        <div class="progress">
+                                            <div id="disk-progress" class="progress-bar" role="progressbar" style="width: 0%"></div>
+                                        </div>
+                                        <span id="disk-usage">0%</span>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="col-md-4">
+                            <div class="card">
+                                <div class="card-body">
+                                    <h5 class="card-title">Network Activity</h5>
+                                    <div class="mb-3">
+                                        <p>Packets Processed: <span id="packets-processed">0</span></p>
+                                        <p>Alerts Triggered: <span id="alerts-triggered">0</span></p>
+                                        <p>Active Connections: <span id="active-connections">0</span></p>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="col-md-4">
+                            <div class="card">
+                                <div class="card-body">
+                                    <h5 class="card-title">Threat Level</h5>
+                                    <div class="mb-3">
+                                        <div class="progress">
+                                            <div id="threat-progress" class="progress-bar" role="progressbar" style="width: 0%"></div>
+                                        </div>
+                                        <span id="threat-level" class="badge bg-secondary">Low</span>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Network View Section -->
+                <div class="dashboard-section d-none" id="network">
+                    <div class="card">
+                        <div class="card-body">
+                            <h5 class="card-title">Network Topology</h5>
+                            <div id="network-graph" class="network-graph"></div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Alerts Section -->
+                <div class="dashboard-section d-none" id="alerts">
+                    <div class="card">
+                        <div class="card-body">
+                            <h5 class="card-title">Security Alerts</h5>
+                            <div class="table-responsive">
+                                <table class="table table-striped">
+                                    <thead>
+                                        <tr>
+                                            <th>Timestamp</th>
+                                            <th>Severity</th>
+                                            <th>Source</th>
+                                            <th>Message</th>
+                                            <th>Actions</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody id="alerts-table">
+                                    </tbody>
+                                </table>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Metrics Section -->
+                <div class="dashboard-section d-none" id="metrics">
+                    <div class="row">
+                        <div class="col-md-6">
+                            <div class="card">
+                                <div class="card-body">
+                                    <h5 class="card-title">Packet Rate</h5>
+                                    <canvas id="packetRateChart"></canvas>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <div class="card">
+                                <div class="card-body">
+                                    <h5 class="card-title">Threat Level</h5>
+                                    <canvas id="threatLevelChart"></canvas>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </main>
+        </div>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/js/bootstrap.bundle.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script src="{{ url_for('static', path='/js/dashboard.js') }}"></script>
+</body>
+</html> 

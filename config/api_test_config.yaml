@@ -1,0 +1,18 @@
+# API Test Configuration
+
+# API Connection Settings
+api_url: "http://localhost:8080"  # Base URL for API
+api_key: "test_api_key"  # API key for authentication
+request_timeout: 10  # Request timeout in seconds
+max_retries: 3  # Maximum number of retry attempts
+retry_delay: 1  # Delay between retries in seconds
+
+# Test Settings
+validate_response_schema: true  # Whether to validate response schema
+include_optional_fields: false  # Whether to require optional fields
+mock_connection_errors: false  # Whether to simulate connection errors
+
+# Reporting
+report_format: "json"  # Output format (json, text)
+include_request_details: true  # Include request details in report
+include_response_body: true  # Include response body in report 

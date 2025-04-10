@@ -1,0 +1,60 @@
+# Token-based Rate Limiting Configuration
+
+# Global rate limit (applies to all endpoints)
+global:
+  limit: 100
+  window: 60  # seconds
+  burst_factor: 1.5  # Allow bursts of up to 150 requests
+
+# IP-based rate limits
+ip:
+  limit: 60
+  window: 60
+  burst_factor: 1.2
+
+# User-based rate limits (requires authentication)
+user:
+  limit: 100
+  window: 60
+  burst_factor: 1.5
+
+# Token-based rate limits (for API tokens)
+token:
+  limit: 120
+  window: 60
+  burst_factor: 2.0
+
+# Endpoint-specific rate limits
+endpoints:
+  # Authentication endpoints
+  "POST:/api/v1/auth/login":
+    limit: 5
+    window: 60
+    burst_factor: 1.0  # No bursting for login to prevent brute force
+  
+  "POST:/api/v1/auth/refresh":
+    limit: 10
+    window: 60
+    burst_factor: 1.0
+  
+  # Monitoring endpoints
+  "GET:/api/v1/monitor/stats":
+    limit: 30
+    window: 60
+    burst_factor: 1.5
+  
+  "GET:/api/v1/monitor/alerts":
+    limit: 20
+    window: 60
+    burst_factor: 1.5
+  
+  # Configuration endpoints (more sensitive, so lower limits)
+  "GET:/api/v1/config/current":
+    limit: 10
+    window: 60
+    burst_factor: 1.2
+  
+  "PUT:/api/v1/config/update":
+    limit: 5
+    window: 60
+    burst_factor: 1.0 

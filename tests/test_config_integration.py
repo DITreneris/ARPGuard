@@ -9,6 +9,8 @@ import tempfile
 import unittest
 from io import StringIO
 from contextlib import redirect_stdout
+from unittest.mock import patch
+import re
 
 from app.utils.config import ConfigManager, DEFAULT_CONFIG, get_config_manager
 from app.components.cli import ARPGuardCLI
@@ -291,6 +293,74 @@ class TestConfigIntegration(unittest.TestCase):
         finally:
             # Restore original method
             self.cli.arp_cache_monitor.start_monitoring = original_start_monitoring
+    
+    def test_backup_restore_workflow(self):
+        """Test a complete backup/restore workflow using CLI."""
+        # Create backup directory for test
+        backup_dir = os.path.join(self.temp_dir.name, "backups")
+        os.makedirs(backup_dir, exist_ok=True)
+        
+        with patch('app.components.cli.BACKUP_DIR', backup_dir):
+            # 1. Initial configuration
+            self.cli.run(["config", "set", "scan", "default_timeout", "5"])
+            self.cli.run(["config", "save"])
+            
+            # 2. Create a backup
+            result, output = self._capture_output(
+                self.cli.run, ["config", "backup", "create"]
+            )
+            
+            # Verify backup creation succeeded
+            self.assertEqual(result, 0)
+            self.assertIn("created", output.lower())
+            
+            # Extract backup ID from output
+            backup_id_match = re.search(r"ID: ([a-zA-Z0-9_]+)", output)
+            self.assertIsNotNone(backup_id_match, "Backup ID not found in output")
+            backup_id = backup_id_match.group(1)
+            
+            # Verify backup file exists
+            backup_path = os.path.join(backup_dir, f"{backup_id}.zip")
+            self.assertTrue(os.path.exists(backup_path), f"Backup file not found: {backup_path}")
+            
+            # 3. Change configuration
+            self.cli.run(["config", "set", "scan", "default_timeout", "10"])
+            self.cli.run(["config", "save"])
+            
+            # Verify the change was applied
+            timeout = self.config_manager.get("scan", "default_timeout")
+            self.assertEqual(timeout, 10)
+            
+            # 4. List backups
+            result, output = self._capture_output(
+                self.cli.run, ["config", "backup", "list"]
+            )
+            
+            # Verify the backup is listed
+            self.assertEqual(result, 0)
+            self.assertIn(backup_id, output)
+            
+            # 5. Restore the backup
+            result, output = self._capture_output(
+                self.cli.run, ["config", "backup", "restore", backup_id]
+            )
+            
+            # Verify restore succeeded
+            self.assertEqual(result, 0)
+            self.assertIn("restored", output.lower())
+            
+            # 6. Verify the configuration was restored
+            timeout = self.config_manager.get("scan", "default_timeout")
+            self.assertEqual(timeout, 5, "Configuration was not properly restored")
+            
+            # 7. Test error handling with non-existent backup
+            result, output = self._capture_output(
+                self.cli.run, ["config", "backup", "restore", "non_existent_id"]
+            )
+            
+            # Verify appropriate error
+            self.assertNotEqual(result, 0)
+            self.assertIn("not found", output.lower())
 
 
 if __name__ == "__main__":

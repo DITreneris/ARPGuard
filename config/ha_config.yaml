@@ -1,0 +1,58 @@
+# ARPGuard High Availability Configuration
+
+# Node definitions
+nodes:
+  - name: arpguard-primary
+    role: primary
+    host: 10.0.1.10
+    port: 8080
+    health_check_endpoint: /health
+    
+  - name: arpguard-backup1
+    role: backup
+    host: 10.0.1.11
+    port: 8080
+    health_check_endpoint: /health
+    
+  - name: arpguard-backup2
+    role: backup
+    host: 10.0.1.12
+    port: 8080
+    health_check_endpoint: /health
+
+# Heartbeat configuration
+heartbeat:
+  interval_seconds: 5
+  timeout_seconds: 3
+  failure_threshold: 3
+
+# Failover procedure
+failover_procedure:
+  auto_failover: true
+  failback: true
+  failback_delay_minutes: 5
+  notify_admin: true
+  notify_email: admin@example.com
+  run_pre_failover_script: scripts/pre_failover.sh
+  run_post_failover_script: scripts/post_failover.sh
+
+# Load balancing
+load_balancing:
+  enabled: true
+  strategy: round-robin
+  
+# Synchronization
+synchronization:
+  enabled: true
+  method: rsync
+  interval_minutes: 5
+  files:
+    - config/
+    - data/alerts/
+    - logs/
+    
+# Recovery
+recovery:
+  auto_recovery: true
+  max_recovery_attempts: 3
+  recovery_wait_seconds: 30 

@@ -1,0 +1,65 @@
+.scan-history {
+  width: 100%;
+}
+
+.scan-card {
+  height: 100%;
+  transition: all 0.2s ease-in-out;
+}
+
+.scan-card:hover {
+  transform: translateY(-2px);
+}
+
+.scan-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.scan-details {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin-top: 12px;
+}
+
+.scan-detail-item {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.scan-detail-item svg {
+  opacity: 0.7;
+}
+
+/* Status indicators */
+.status-completed {
+  color: #4caf50;
+}
+
+.status-cancelled {
+  color: #ff9800;
+}
+
+.status-failed {
+  color: #f44336;
+}
+
+.status-running {
+  color: #2196f3;
+}
+
+/* Empty state styling */
+.empty-history {
+  padding: 40px 0;
+  text-align: center;
+}
+
+/* Responsive adjustments */
+@media (max-width: 600px) {
+  .scan-card {
+    margin-bottom: 16px;
+  }
+} 

@@ -1,0 +1,3 @@
+@echo off
+echo Opening ARP Guard Demo Dashboard in your default browser...
+start http://localhost:8000 

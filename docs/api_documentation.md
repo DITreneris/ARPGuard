@@ -19,8 +19,357 @@ git_history:
 # ARPGuard API Documentation
 
 ## Overview
+This document provides comprehensive documentation for the ARPGuard API, including authentication, monitoring, configuration, and security endpoints.
 
-This document provides detailed information about ARPGuard's internal APIs and components. It is intended for developers who want to extend, customize, or integrate ARPGuard functionality into their own applications.
+## Base URL
+```
+https://api.arpguard.example.com/v1
+```
+
+## API Versioning
+### Version Headers
+- `X-API-Version`: Request specific API version
+- `Accept`: Version negotiation with quality values
+- `X-API-Deprecated`: Indicates deprecated endpoints
+
+### Version Support
+- Current Version: 1.0
+- Supported Versions: 0.9, 1.0
+- Forward Compatibility: Yes
+- Backward Compatibility: Yes
+
+### Version Migration
+```http
+GET /api/monitor/stats
+X-API-Version: 0.9
+Accept: application/json; version=1.0; q=0.9
+```
+
+## Rate Limiting
+### Rate Limit Headers
+- `X-RateLimit-Limit`: Maximum requests per window
+- `X-RateLimit-Remaining`: Remaining requests
+- `X-RateLimit-Reset`: Time until reset
+- `X-RateLimit-Window`: Time window in seconds
+
+### Rate Limits
+- Global: 100 requests/minute
+- Per User: 50 requests/minute
+- Per Endpoint: Varies by resource
+- Burst: 2x normal limit for 10 seconds
+
+### Rate Limit Recovery
+```http
+HTTP/1.1 429 Too Many Requests
+X-RateLimit-Limit: 100
+X-RateLimit-Remaining: 0
+X-RateLimit-Reset: 60
+Retry-After: 60
+```
+
+## Authentication
+### Login
+```http
+POST /api/v1/auth/login
+Content-Type: application/json
+
+{
+    "username": "admin",
+    "password": "securepassword"
+}
+```
+
+Response:
+```json
+{
+    "token": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...",
+    "expires_in": 3600,
+    "token_type": "Bearer",
+    "session_id": "session_123",
+    "mfa_required": true
+}
+```
+
+### Multi-Factor Authentication
+```http
+POST /api/v1/auth/mfa/verify
+Content-Type: application/json
+Authorization: Bearer <token>
+
+{
+    "code": "123456",
+    "session_id": "session_123"
+}
+```
+
+Response:
+```json
+{
+    "status": "success",
+    "message": "MFA verification successful",
+    "session_token": "session_token_456"
+}
+```
+
+### Session Management
+```http
+GET /api/v1/auth/sessions
+Authorization: Bearer <token>
+```
+
+Response:
+```json
+{
+    "sessions": [
+        {
+            "session_id": "session_123",
+            "created_at": "2024-03-20T12:00:00Z",
+            "last_activity": "2024-03-20T12:30:00Z",
+            "ip_address": "192.168.1.100",
+            "user_agent": "Mozilla/5.0...",
+            "status": "active"
+        }
+    ]
+}
+```
+
+### Revoke Session
+```http
+DELETE /api/v1/auth/sessions/{session_id}
+Authorization: Bearer <token>
+```
+
+Response:
+```json
+{
+    "status": "success",
+    "message": "Session revoked successfully"
+}
+```
+
+### Session Activity
+```http
+GET /api/v1/auth/sessions/{session_id}/activity
+Authorization: Bearer <token>
+```
+
+Response:
+```json
+{
+    "activities": [
+        {
+            "timestamp": "2024-03-20T12:00:00Z",
+            "action": "login",
+            "ip_address": "192.168.1.100"
+        },
+        {
+            "timestamp": "2024-03-20T12:30:00Z",
+            "action": "api_request",
+            "endpoint": "/api/v1/monitor/stats"
+        }
+    ]
+}
+```
+
+## Monitoring
+### Network Statistics
+```http
+GET /api/v1/monitor/stats
+Authorization: Bearer <token>
+```
+
+Response:
+```json
+{
+    "arp_requests": 150,
+    "mac_changes": 10,
+    "blocked_packets": 5,
+    "timestamp": "2024-03-20T12:00:00Z"
+}
+```
+
+### Alerts
+```http
+GET /api/v1/monitor/alerts
+Authorization: Bearer <token>
+```
+
+Response:
+```json
+{
+    "alerts": [
+        {
+            "id": "alert-123",
+            "type": "arp_spoofing",
+            "severity": "high",
+            "timestamp": "2024-03-20T12:00:00Z",
+            "status": "active"
+        }
+    ]
+}
+```
+
+## Configuration
+### Get Current Configuration
+```http
+GET /api/v1/config/current
+Authorization: Bearer <token>
+```
+
+### Update Configuration
+```http
+PUT /api/v1/config/current
+Authorization: Bearer <token>
+Content-Type: application/json
+
+{
+    "network": {
+        "interface": "eth0",
+        "monitoring_mode": "promiscuous"
+    },
+    "security": {
+        "arp_spoofing": {
+            "enabled": true,
+            "threshold": 100
+        }
+    }
+}
+```
+
+## Client Examples
+### Python
+```python
+import requests
+
+class ARPGuardClient:
+    def __init__(self, base_url):
+        self.base_url = base_url
+        self.session = requests.Session()
+    
+    def login(self, username, password):
+        response = self.session.post(
+            f"{self.base_url}/api/v1/auth/login",
+            json={"username": username, "password": password}
+        )
+        return response.json()["token"]
+```
+
+### Java
+```java
+import okhttp3.*;
+
+public class ARPGuardClient {
+    private final OkHttpClient client;
+    private final String baseUrl;
+
+    public ARPGuardClient(String baseUrl) {
+        this.client = new OkHttpClient();
+        this.baseUrl = baseUrl;
+    }
+
+    public String login(String username, String password) throws IOException {
+        RequestBody body = RequestBody.create(
+            MediaType.parse("application/json"),
+            String.format("{\"username\":\"%s\",\"password\":\"%s\"}", username, password)
+        );
+
+        Request request = new Request.Builder()
+            .url(baseUrl + "/api/v1/auth/login")
+            .post(body)
+            .build();
+
+        try (Response response = client.newCall(request).execute()) {
+            return response.body().string();
+        }
+    }
+}
+```
+
+### Go
+```go
+package arpguard
+
+import (
+    "bytes"
+    "encoding/json"
+    "net/http"
+)
+
+type ARPGuardClient struct {
+    client  *http.Client
+    baseURL string
+}
+
+func NewClient(baseURL string) *ARPGuardClient {
+    return &ARPGuardClient{
+        client:  &http.Client{},
+        baseURL: baseURL,
+    }
+}
+
+func (c *ARPGuardClient) Login(username, password string) (string, error) {
+    data := map[string]string{
+        "username": username,
+        "password": password,
+    }
+    jsonData, _ := json.Marshal(data)
+
+    resp, err := c.client.Post(
+        c.baseURL+"/api/v1/auth/login",
+        "application/json",
+        bytes.NewBuffer(jsonData),
+    )
+    if err != nil {
+        return "", err
+    }
+    defer resp.Body.Close()
+
+    var result map[string]string
+    json.NewDecoder(resp.Body).Decode(&result)
+    return result["token"], nil
+}
+```
+
+## Error Handling
+### Common Errors
+```json
+{
+    "error": {
+        "code": "RATE_LIMIT_EXCEEDED",
+        "message": "Rate limit exceeded",
+        "details": {
+            "retry_after": 60
+        }
+    }
+}
+```
+
+### Version Errors
+```json
+{
+    "error": {
+        "code": "VERSION_NOT_SUPPORTED",
+        "message": "Requested API version not supported",
+        "details": {
+            "supported_versions": ["0.9", "1.0"]
+        }
+    }
+}
+```
+
+## Security Considerations
+1. Always use HTTPS
+2. Implement proper token storage
+3. Handle rate limiting gracefully
+4. Validate all input data
+5. Use appropriate API versioning
+6. Implement proper error handling
+7. Follow security best practices
+8. Enable MFA for sensitive operations
+9. Monitor session activity
+10. Implement session timeout
+11. Use secure session tokens
+12. Track session metadata
 
 ## Core Modules
 

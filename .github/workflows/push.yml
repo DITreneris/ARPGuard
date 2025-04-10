@@ -1,0 +1,151 @@
+name: Push Validation
+
+on:
+  push:
+    branches: [ main, develop ]
+    paths-ignore:
+      - 'docs/**'
+      - '*.md'
+      - '.github/**'
+
+jobs:
+  validate:
+    name: Validate Changes
+    runs-on: ubuntu-latest
+    
+    steps:
+    - uses: actions/checkout@v3
+      with:
+        fetch-depth: 0
+    
+    - name: Set up Python
+      uses: actions/setup-python@v4
+      with:
+        python-version: '3.11'
+    
+    - name: Install dependencies
+      run: |
+        python -m pip install --upgrade pip
+        pip install pre-commit black flake8 mypy
+    
+    - name: Run pre-commit
+      run: |
+        pre-commit run --all-files
+    
+    - name: Check for large files
+      run: |
+        find . -type f -size +10M -not -path "./.git/*" -not -path "./node_modules/*" -not -path "./venv/*" -not -path "./.venv/*" | wc -l | grep -q '^0$'
+    
+    - name: Check for sensitive data
+      run: |
+        git secrets --scan-history || true
+    
+    - name: Validate commit messages
+      run: |
+        git log -1 --pretty=%B | grep -E '^(feat|fix|docs|style|refactor|test|chore)(\([a-z-]+\))?: .{1,50}'
+
+  notify:
+    name: Notify Team
+    needs: validate
+    if: always()
+    runs-on: ubuntu-latest
+    
+    steps:
+    - name: Send Slack notification
+      if: failure()
+      uses: 8398a7/action-slack@v3
+      with:
+        status: ${{ job.status }}
+        fields: repo,message,commit,author,action,eventName,ref,workflow,job,took
+      env:
+        SLACK_WEBHOOK_URL: ${{ secrets.SLACK_WEBHOOK_URL }}
+    
+    - name: Send email notification
+      if: failure()
+      uses: dawidd6/action-send-mail@v3
+      with:
+        server_address: ${{ secrets.SMTP_SERVER }}
+        server_port: ${{ secrets.SMTP_PORT }}
+        username: ${{ secrets.SMTP_USERNAME }}
+        password: ${{ secrets.SMTP_PASSWORD }}
+        subject: "Push Validation Failed - ${{ github.repository }}"
+        body: |
+          Push validation failed for repository ${{ github.repository }}
+          Branch: ${{ github.ref }}
+          Commit: ${{ github.sha }}
+          Author: ${{ github.actor }}
+          Workflow: ${{ github.workflow }}
+          Job: ${{ job.status }}
+        to: ${{ secrets.NOTIFICATION_EMAIL }}
+        from: ${{ secrets.SMTP_FROM }}
+
+  update-docs:
+    name: Update Documentation
+    needs: validate
+    if: success()
+    runs-on: ubuntu-latest
+    
+    steps:
+    - uses: actions/checkout@v3
+    
+    - name: Set up Python
+      uses: actions/setup-python@v4
+      with:
+        python-version: '3.11'
+    
+    - name: Install dependencies
+      run: |
+        python -m pip install --upgrade pip
+        pip install mkdocs mkdocs-material
+    
+    - name: Build documentation
+      run: |
+        mkdocs build --clean
+    
+    - name: Deploy documentation
+      if: github.ref == 'refs/heads/main'
+      uses: peaceiris/actions-gh-pages@v3
+      with:
+        github_token: ${{ secrets.GITHUB_TOKEN }}
+        publish_dir: ./site
+        publish_branch: gh-pages
+
+  version:
+    name: Update Version
+    needs: validate
+    if: success() && github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    
+    steps:
+    - uses: actions/checkout@v3
+    
+    - name: Set up Python
+      uses: actions/setup-python@v4
+      with:
+        python-version: '3.11'
+    
+    - name: Install dependencies
+      run: |
+        python -m pip install --upgrade pip
+        pip install bump2version
+    
+    - name: Bump version
+      run: |
+        bump2version patch
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+    
+    - name: Create release
+      uses: softprops/action-gh-release@v1
+      with:
+        name: Release v${{ github.ref_name }}
+        tag_name: v${{ github.ref_name }}
+        body: |
+          ## Changes
+          - Automated version bump
+          - Documentation updates
+          - CI/CD improvements
+        draft: false
+        prerelease: false
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }} 

@@ -1,0 +1,54 @@
+{
+    "installation": {
+        "path": "installation",
+        "description": "Installation guide for ARP Guard, including system requirements and setup instructions."
+    },
+    "configuration": {
+        "path": "configuration",
+        "description": "Configuration options and settings for ARP Guard."
+    },
+    "monitoring": {
+        "path": "monitoring",
+        "description": "Guide to network monitoring features and capabilities."
+    },
+    "alerts": {
+        "path": "alerts",
+        "description": "Alert system configuration and notification settings."
+    },
+    "troubleshooting": {
+        "path": "troubleshooting",
+        "description": "Common issues and their solutions."
+    },
+    "api": {
+        "path": "api",
+        "description": "API documentation and integration guide."
+    },
+    "cli": {
+        "path": "cli",
+        "description": "Command-line interface reference and usage examples."
+    },
+    "development": {
+        "path": "development",
+        "description": "Development guide for contributing to ARP Guard."
+    },
+    "contributing": {
+        "path": "contributing",
+        "description": "Guidelines for contributing to the project."
+    },
+    "demo": {
+        "path": "demo",
+        "description": "Demo Tier features and limitations."
+    },
+    "premium": {
+        "path": "premium",
+        "description": "Premium Tier features and benefits."
+    },
+    "security": {
+        "path": "security",
+        "description": "Security features and best practices."
+    },
+    "faq": {
+        "path": "faq",
+        "description": "Frequently asked questions and answers."
+    }
+} 
