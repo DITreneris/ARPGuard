@@ -1,8 +1,8 @@
 # ARP Guard
 
 [![License](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
-[![Build Status](https://github.com/DITreneris/ARPGuard/actions/workflows/ci.yml/badge.svg)](https://github.com/DITreneris/ARPGuard/actions)
-[![Coverage](https://codecov.io/gh/DITreneris/ARPGuard/branch/master/graph/badge.svg)](https://codecov.io/gh/DITreneris/ARPGuard)
+[![Build Status](https://img.shields.io/github/workflow/status/DITreneris/ARPGuard/ARP%20Guard%20CI%2FCD?label=build)](https://github.com/DITreneris/ARPGuard/actions/workflows/ci.yml)
+[![codecov](https://img.shields.io/codecov/c/github/DITreneris/ARPGuard)](https://codecov.io/gh/DITreneris/ARPGuard)
 [![Version](https://img.shields.io/badge/version-1.0.0-blue.svg)](https://github.com/DITreneris/ARPGuard/releases)
 [![Python Version](https://img.shields.io/badge/python-3.9%2B-blue.svg)](https://www.python.org/downloads/)
 [![Node Version](https://img.shields.io/badge/node-18.x%2B-green.svg)](https://nodejs.org/)
