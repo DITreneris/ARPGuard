@@ -3,9 +3,29 @@
 [![License](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
 [![Build Status](https://img.shields.io/github/actions/workflow/status/guardsandrobbers/arpguard/ci.yml)](https://github.com/guardsandrobbers/arpguard/actions)
 [![Coverage](https://img.shields.io/codecov/c/github/guardsandrobbers/arpguard)](https://codecov.io/gh/guardsandrobbers/arpguard)
-[![Version](https://img.shields.io/github/v/release/guardsandrobbers/arpguard)](https://github.com/guardsandrobbers/arpguard/releases)
+[![Version](https://img.shields.io/badge/version-1.0.0-blue.svg)](https://github.com/guardsandrobbers/arpguard/releases)
+[![Python Version](https://img.shields.io/badge/python-3.9%2B-blue.svg)](https://www.python.org/downloads/)
+[![Node Version](https://img.shields.io/badge/node-18.x%2B-green.svg)](https://nodejs.org/)
 
 ARP Guard is an advanced network security solution specializing in real-time ARP spoofing detection and prevention. It leverages machine learning to identify and mitigate ARP-based attacks, providing comprehensive protection against man-in-the-middle attacks, ARP poisoning, and other network layer threats.
+
+## Version Information
+
+Current Version: 1.0.0 (Released: 2025-04-11)
+
+### Version History
+- 1.0.0 (2025-04-11)
+  - Initial release
+  - Core ARP spoofing detection
+  - Real-time monitoring
+  - CLI interface
+  - Web dashboard
+  - Basic remediation capabilities
+
+### Version Compatibility
+- Major version changes (1.x.x → 2.x.x) may include breaking changes
+- Minor version changes (1.0.x → 1.1.x) add features while maintaining compatibility
+- Patch version changes (1.0.0 → 1.0.1) include bug fixes and minor improvements
 
 ## Features
 

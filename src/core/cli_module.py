@@ -14,6 +14,7 @@ from .module_interface import Module, ModuleConfig
 from .feature_flags import feature_required, FeatureDisabledException
 from .cli_utils import OutputFormatter, OutputFormat, ProgressBar, Spinner, InteractiveShell
 from .network_config import NetworkConfigManager, create_default_config
+from .version import get_version, get_release_date
 
 # Configure logging
 logging.basicConfig(
@@ -157,10 +158,11 @@ class CLIModule(Module):
         super().__init__("cli", "Command Line Interface", config or CLIModuleConfig())
         self.parser = argparse.ArgumentParser(
             prog=self.config.program_name,
-            description=self.config.program_description
+            description=f"ARP Guard CLI (Version {get_version()})",
+            formatter_class=argparse.RawDescriptionHelpFormatter
         )
         self.commands: Dict[str, CLICommand] = {}
-        self.subparsers = None
+        self.subparsers = self.parser.add_subparsers(dest="command", help="Available commands")
         self.output_formatter = OutputFormatter()
         self.interactive_shell = None
         
@@ -707,6 +709,12 @@ class CLIModule(Module):
             print(f"Error: {e}")
             return False
         return True
+
+    def _handle_version(self, args: argparse.Namespace) -> None:
+        """Handle version command."""
+        print(f"ARP Guard Version: {get_version()} (Released: {get_release_date()})")
+        print("Copyright (c) 2024-2025 ARP Guard Team")
+        print("License: MIT")
 
 
 # Standard commands factory functions

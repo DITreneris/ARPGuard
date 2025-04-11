@@ -16,11 +16,12 @@ from src.core.telemetry_module import TelemetryModule, TelemetryModuleConfig
 from src.core.cli_utils import OutputFormat, OutputFormatter, ProgressBar, Spinner
 from src.core.performance_config import PerformanceConfig
 from src.core.feature_flags import FeatureFlagManager, register_standard_features
+from src.core.version import get_version, get_release_date
 
 # Configure logging
 logging.basicConfig(
     level=logging.INFO,
-    format='%(asctime)s - %(levelname)s - %(module)s - %(message)s'
+    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s'
 )
 logger = logging.getLogger(__name__)
 
@@ -295,4 +296,9 @@ def main(args: Optional[List[str]] = None) -> int:
 
 
 if __name__ == "__main__":
-    sys.exit(main()) 
+    try:
+        logger.info(f"Starting ARP Guard v{get_version()} (Released: {get_release_date()})")
+        sys.exit(main())
+    except Exception as e:
+        logger.error(f"Error running ARP Guard: {str(e)}")
+        sys.exit(1) 
