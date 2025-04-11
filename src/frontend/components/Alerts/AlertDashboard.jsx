@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { useSelector } from 'react-redux';
+import { useSelector, useDispatch } from 'react-redux';
 import './AlertDashboard.css';
 
 /**
@@ -7,7 +7,7 @@ import './AlertDashboard.css';
  * 
  * Displays a list of alerts with filtering and sorting capabilities
  */
-const AlertDashboard = () => {
+const AlertDashboard = ({ isLiteMode = false }) => {
   // State for alerts and UI
   const [alerts, setAlerts] = useState([]);
   const [filteredAlerts, setFilteredAlerts] = useState([]);
@@ -16,12 +16,23 @@ const AlertDashboard = () => {
   const [error, setError] = useState(null);
   const [searchQuery, setSearchQuery] = useState('');
   const [timeframe, setTimeframe] = useState('24h');
-  const [activeSeverityFilters, setActiveSeverityFilters] = useState([
-    'critical', 'high', 'medium', 'low'
-  ]);
+  const [activeSeverityFilters, setActiveSeverityFilters] = useState({
+    critical: true,
+    high: true,
+    medium: true,
+    low: true
+  });
+  
+  // Stats for different severity levels
+  const [stats, setStats] = useState({
+    critical: 0,
+    high: 0,
+    medium: 0,
+    low: 0
+  });
   
   // Get app mode from Redux store
-  const isLiteMode = useSelector(state => state.app.isLiteMode);
+  const isLiteModeRedux = useSelector(state => state.app.isLiteMode);
   
   // Fetch alerts data
   useEffect(() => {
@@ -29,24 +40,38 @@ const AlertDashboard = () => {
       try {
         setLoading(true);
         
-        // In a real app, this would be an API call
-        // For now we'll simulate with a timeout
-        await new Promise(resolve => setTimeout(resolve, 1000));
+        const response = await fetch('/api/alerts', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json'
+          },
+          body: JSON.stringify({
+            timeframe,
+            filters: activeSeverityFilters
+          })
+        });
         
-        // Mock data for demonstration
-        const mockAlerts = generateMockAlerts(isLiteMode);
-        setAlerts(mockAlerts);
-        setFilteredAlerts(mockAlerts);
-        setLoading(false);
+        if (response.ok) {
+          const data = await response.json();
+          setAlerts(data.alerts);
+          setFilteredAlerts(data.alerts);
+          setStats({
+            critical: data.stats.critical || 0,
+            high: data.stats.high || 0,
+            medium: data.stats.medium || 0,
+            low: data.stats.low || 0
+          });
+        }
       } catch (err) {
         console.error('Error fetching alerts:', err);
         setError('Failed to load alerts. Please try again.');
+      } finally {
         setLoading(false);
       }
     };
 
     fetchAlerts();
-  }, [isLiteMode]);
+  }, [timeframe, activeSeverityFilters]);
 
   // Apply filters when search query, timeframe or severity filters change
   useEffect(() => {
@@ -54,9 +79,14 @@ const AlertDashboard = () => {
     
     const filtered = alerts.filter(alert => {
       // Apply severity filter
-      if (!activeSeverityFilters.includes(alert.severity)) {
-        return false;
+      if (!activeSeverityFilters.critical && !activeSeverityFilters.high && !activeSeverityFilters.medium && !activeSeverityFilters.low) {
+        return true;
       }
+      
+      if (!activeSeverityFilters.critical && alert.severity === 'critical') return false;
+      if (!activeSeverityFilters.high && alert.severity === 'high') return false;
+      if (!activeSeverityFilters.medium && alert.severity === 'medium') return false;
+      if (!activeSeverityFilters.low && alert.severity === 'low') return false;
       
       // Apply search query
       if (searchQuery) {
@@ -104,14 +134,10 @@ const AlertDashboard = () => {
 
   // Toggle severity filter
   const toggleSeverityFilter = (severity) => {
-    if (activeSeverityFilters.includes(severity)) {
-      // Don't allow deselecting all filters
-      if (activeSeverityFilters.length > 1) {
-        setActiveSeverityFilters(activeSeverityFilters.filter(s => s !== severity));
-      }
-    } else {
-      setActiveSeverityFilters([...activeSeverityFilters, severity]);
-    }
+    setActiveSeverityFilters({
+      ...activeSeverityFilters,
+      [severity]: !activeSeverityFilters[severity]
+    });
   };
 
   // Handle alert selection
@@ -120,15 +146,37 @@ const AlertDashboard = () => {
   };
 
   // Handle refresh button click
-  const handleRefresh = () => {
+  const handleRefresh = async () => {
     setLoading(true);
-    // In a real app, re-fetch data here
-    setTimeout(() => {
-      const mockAlerts = generateMockAlerts(isLiteMode);
-      setAlerts(mockAlerts);
-      setFilteredAlerts(mockAlerts);
+    try {
+      const response = await fetch('/api/alerts', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({
+          timeframe,
+          filters: activeSeverityFilters
+        })
+      });
+      
+      if (response.ok) {
+        const data = await response.json();
+        setAlerts(data.alerts);
+        setFilteredAlerts(data.alerts);
+        setStats({
+          critical: data.stats.critical || 0,
+          high: data.stats.high || 0,
+          medium: data.stats.medium || 0,
+          low: data.stats.low || 0
+        });
+      }
+    } catch (err) {
+      console.error('Error refreshing alerts:', err);
+      setError('Failed to refresh alerts. Please try again.');
+    } finally {
       setLoading(false);
-    }, 1000);
+    }
   };
 
   // Format timestamp
@@ -137,17 +185,8 @@ const AlertDashboard = () => {
     return date.toLocaleString();
   };
 
-  // Calculate stats
-  const alertStats = {
-    critical: filteredAlerts.filter(a => a.severity === 'critical').length,
-    high: filteredAlerts.filter(a => a.severity === 'high').length,
-    medium: filteredAlerts.filter(a => a.severity === 'medium').length,
-    low: filteredAlerts.filter(a => a.severity === 'low').length,
-    total: filteredAlerts.length
-  };
-
   return (
-    <div className={`alert-dashboard ${isLiteMode ? 'lite-mode' : ''}`}>
+    <div className={`alert-dashboard ${isLiteMode ? 'lite-mode' : ''}`} data-testid="alert-dashboard">
       <div className="dashboard-header">
         <h2>Alerts Dashboard</h2>
         <div className="filter-controls">
@@ -162,11 +201,13 @@ const AlertDashboard = () => {
           </div>
           
           <div className="timeframe-selector">
-            <label>Timeframe:</label>
+            <label htmlFor="timeframe-select">Timeframe:</label>
             <select 
+              id="timeframe-select"
               className="timeframe-select"
               value={timeframe}
               onChange={handleTimeframeChange}
+              data-testid="timeframe-select"
             >
               <option value="1h">Last hour</option>
               <option value="6h">Last 6 hours</option>
@@ -177,15 +218,30 @@ const AlertDashboard = () => {
           </div>
           
           <div className="severity-filters">
-            {['critical', 'high', 'medium', 'low'].map(severity => (
-              <button
-                key={severity}
-                className={`severity-filter ${severity} ${activeSeverityFilters.includes(severity) ? 'active' : ''}`}
-                onClick={() => toggleSeverityFilter(severity)}
-              >
-                {severity}
-              </button>
-            ))}
+            <button
+              className={`severity-filter critical ${activeSeverityFilters.critical ? 'active' : ''}`}
+              onClick={() => toggleSeverityFilter('critical')}
+            >
+              critical
+            </button>
+            <button
+              className={`severity-filter high ${activeSeverityFilters.high ? 'active' : ''}`}
+              onClick={() => toggleSeverityFilter('high')}
+            >
+              high
+            </button>
+            <button
+              className={`severity-filter medium ${activeSeverityFilters.medium ? 'active' : ''}`}
+              onClick={() => toggleSeverityFilter('medium')}
+            >
+              medium
+            </button>
+            <button
+              className={`severity-filter low ${activeSeverityFilters.low ? 'active' : ''}`}
+              onClick={() => toggleSeverityFilter('low')}
+            >
+              low
+            </button>
           </div>
           
           <button className="refresh-button" onClick={handleRefresh}>
@@ -197,28 +253,28 @@ const AlertDashboard = () => {
       {/* Stats section - hide in lite mode if screen is small */}
       {(!isLiteMode || window.innerWidth > 768) && (
         <div className="stats-section">
-          <div className="stat-card critical">
+          <div className="stat-card critical" data-testid="stat-card-critical">
             <h3>Critical</h3>
-            <div className="stat-value">{alertStats.critical}</div>
+            <div className="stat-value" data-testid="stat-value">{stats.critical}</div>
           </div>
-          <div className="stat-card high">
+          <div className="stat-card high" data-testid="stat-card-high">
             <h3>High</h3>
-            <div className="stat-value">{alertStats.high}</div>
+            <div className="stat-value" data-testid="stat-value">{stats.high}</div>
           </div>
-          <div className="stat-card medium">
+          <div className="stat-card medium" data-testid="stat-card-medium">
             <h3>Medium</h3>
-            <div className="stat-value">{alertStats.medium}</div>
+            <div className="stat-value" data-testid="stat-value">{stats.medium}</div>
           </div>
-          <div className="stat-card low">
+          <div className="stat-card low" data-testid="stat-card-low">
             <h3>Low</h3>
-            <div className="stat-value">{alertStats.low}</div>
+            <div className="stat-value" data-testid="stat-value">{stats.low}</div>
           </div>
         </div>
       )}
       
       <div className="alerts-container">
         {loading ? (
-          <div className="loading-indicator">
+          <div className="loading-indicator" data-testid="loading-indicator">
             <div className="spinner"></div>
             <p>Loading alerts...</p>
           </div>
@@ -232,7 +288,12 @@ const AlertDashboard = () => {
             <p>No alerts found matching your filters.</p>
             <button onClick={() => {
               setSearchQuery('');
-              setActiveSeverityFilters(['critical', 'high', 'medium', 'low']);
+              setActiveSeverityFilters({
+                critical: true,
+                high: true,
+                medium: true,
+                low: true
+              });
               setTimeframe('24h');
             }}>Reset Filters</button>
           </div>
@@ -254,6 +315,7 @@ const AlertDashboard = () => {
                   key={alert.id} 
                   className={`alert-row ${alert.severity} ${selectedAlert?.id === alert.id ? 'selected' : ''}`}
                   onClick={() => handleAlertClick(alert)}
+                  data-testid="alert-row"
                 >
                   <td className="severity-column">
                     <div className={`severity-indicator ${alert.severity}`}></div>
@@ -301,7 +363,7 @@ const AlertDashboard = () => {
       
       {/* Alert details panel */}
       {selectedAlert && (
-        <div className="alert-details-panel">
+        <div className="alert-details-panel" role="region" aria-label="Alert Details" data-testid="alert-details">
           <div className="panel-header">
             <h3>Alert Details</h3>
             <button className="close-button" onClick={() => setSelectedAlert(null)}>×</button>
@@ -371,32 +433,29 @@ const AlertDashboard = () => {
               </table>
             </div>
             
-            {/* Show packet details in non-lite mode only */}
-            {!isLiteMode && (
-              <div className="detail-section">
-                <h4>Packet Analysis</h4>
-                <table className="details-table">
-                  <tbody>
-                    <tr>
-                      <td>Protocol</td>
-                      <td>{selectedAlert.protocol || 'Unknown'}</td>
-                    </tr>
-                    <tr>
-                      <td>Packet Count</td>
-                      <td>{selectedAlert.packetCount || 0}</td>
-                    </tr>
-                    <tr>
-                      <td>First Seen</td>
-                      <td>{selectedAlert.firstSeen ? formatTimestamp(selectedAlert.firstSeen) : 'N/A'}</td>
-                    </tr>
-                    <tr>
-                      <td>Last Seen</td>
-                      <td>{selectedAlert.lastSeen ? formatTimestamp(selectedAlert.lastSeen) : 'N/A'}</td>
-                    </tr>
-                  </tbody>
-                </table>
-              </div>
-            )}
+            <div className="detail-section">
+              <h4>Packet Analysis</h4>
+              <table className="details-table">
+                <tbody>
+                  <tr>
+                    <td>Protocol</td>
+                    <td>{selectedAlert.protocol || 'Unknown'}</td>
+                  </tr>
+                  <tr>
+                    <td>Packet Count</td>
+                    <td>{selectedAlert.packetCount || 0}</td>
+                  </tr>
+                  <tr>
+                    <td>First Seen</td>
+                    <td>{selectedAlert.firstSeen ? formatTimestamp(selectedAlert.firstSeen) : 'N/A'}</td>
+                  </tr>
+                  <tr>
+                    <td>Last Seen</td>
+                    <td>{selectedAlert.lastSeen ? formatTimestamp(selectedAlert.lastSeen) : 'N/A'}</td>
+                  </tr>
+                </tbody>
+              </table>
+            </div>
             
             <div className="actions-section">
               <h4>Actions</h4>

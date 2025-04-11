@@ -379,9 +379,10 @@ def register_standard_features():
     # Core features (Demo tier)
     manager.register_feature(FeatureFlag(
         feature_id="core.packet_analysis",
-        name="ARP Packet Analysis",
-        description="Basic ARP packet analysis engine",
-        min_tier=ProductTier.DEMO
+        name="Packet Analysis",
+        description="Core packet analysis functionality",
+        min_tier=ProductTier.DEMO,
+        default_enabled=True
     ))
     
     manager.register_feature(FeatureFlag(
@@ -462,6 +463,15 @@ def register_standard_features():
         name="Automatic Threat Blocking",
         description="Automatic blocking of detected threats",
         min_tier=ProductTier.ENTERPRISE
+    ))
+
+    # Add other standard features...
+    manager.register_feature(FeatureFlag(
+        feature_id="core.telemetry",
+        name="Telemetry",
+        description="Usage statistics collection",
+        min_tier=ProductTier.DEMO,
+        default_enabled=False
     ))
 
 def register_license_based_features(license_manager: LicenseManager):
@@ -584,4 +594,9 @@ def get_available_features(license_key: Optional[str] = None) -> List[str]:
     """Get list of available features for the given license."""
     manager = FeatureFlagManager()
     if not license_key:
-    )) 
+        return [f.feature_id for f in manager.get_all_features() if manager.is_feature_enabled(f.feature_id)]
+    else:
+        # Additional license-specific feature lookup
+        license_manager = LicenseManager()
+        tier = license_manager.get_license_tier(license_key)
+        return [f.feature_id for f in manager.get_tier_features(tier)] 

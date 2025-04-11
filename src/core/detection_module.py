@@ -40,6 +40,8 @@ except ImportError:
     logger.warning("psutil library not found. Some optimizations will be disabled.")
     PSUTIL_AVAILABLE = False
 
+# Import the base Module class
+from .module import Module
 from .remediation_module import RemediationModule
 
 # Constants for optimization
@@ -436,7 +438,7 @@ class DetectionModule(Module):
             config: Configuration for the detection module
             remediation: Optional remediation module for automatic responses
         """
-        super().__init__(name="detection", config=config)
+        super().__init__("detection", "Packet Analysis and ARP Spoofing Detection", config)
         self.config = config
         self.remediation = remediation
         
@@ -452,10 +454,10 @@ class DetectionModule(Module):
         self.packet_cache = deque(maxlen=self.config.max_packet_cache)
         
         # Use more memory-efficient data structures with TTL support
-        self.arp_table = TTLDict(max_age_seconds=3600)  # Expire entries after 1 hour
+        self.arp_table = TTLDict(ttl=3600)  # Expire entries after 1 hour
         self.mac_vendors = {}  # Lazy loaded
         self._mac_vendors_loaded = False  # Track if we've loaded MAC vendors
-        self.suspicious_sources = TTLDict(max_age_seconds=86400)  # Expire after 24 hours
+        self.suspicious_sources = TTLDict(ttl=86400)  # Expire after 24 hours
         self.gateway_info = {}  # Lazy loaded
         self._gateway_info_loaded = False  # Track if we've loaded gateway info
         
@@ -508,7 +510,7 @@ class DetectionModule(Module):
         
         # Don't load vendor/gateway data immediately - lazy load
         # This improves startup time
-        logger.info(f"Detection module initialized with {config.max_worker_threads} workers and pattern recognition")
+        logger.info(f"Detection module initialized with {config.worker_threads} workers and pattern recognition")
     
     def start(self) -> None:
         """Start the detection module and worker threads"""
@@ -521,7 +523,7 @@ class DetectionModule(Module):
         self.stop_event.clear()
         
         # Start worker threads
-        for i in range(self.config.max_worker_threads):
+        for i in range(self.config.worker_threads):
             worker = threading.Thread(
                 target=self._worker_thread,
                 name=f"detection-worker-{i}",
@@ -583,6 +585,22 @@ class DetectionModule(Module):
             packet: Scapy packet to process
         """
         # Update packet stats
+        if "packets_received" not in self.stats:
+            # Initialize missing statistics fields
+            self.stats.update({
+                "packets_received": 0,
+                "last_rate_update": time.time(),
+                "last_packet_count": 0,
+                "packet_rate_samples": [],
+                "avg_packet_rate": 0,
+                "last_thread_adjustment": 0,
+                "priority_distribution": {
+                    PRIORITY_HIGH: 0,
+                    PRIORITY_MEDIUM: 0,
+                    PRIORITY_LOW: 0
+                }
+            })
+            
         self.stats["packets_received"] += 1
         
         # Calculate packet rates periodically
@@ -823,7 +841,8 @@ class DetectionModule(Module):
             except queue.Empty:
                 # Sleep briefly if no work available
                 time.sleep(0.01)
-        except Exception as e:
+                
+            except Exception as e:
                 logger.error(f"Error in worker thread: {e}")
     
         logger.debug(f"Worker thread {threading.current_thread().name} stopped")
@@ -1096,7 +1115,7 @@ class DetectionModule(Module):
             except queue.Empty:
                 # No results, sleep briefly
                 time.sleep(0.01)
-        except Exception as e:
+            except Exception as e:
                 logger.error(f"Error in result collector: {e}")
                 
         logger.debug("Result collector thread stopped")
@@ -1190,7 +1209,7 @@ class DetectionModule(Module):
         current_latency = self.stats["detection_latency"]
         
         # Adjust worker threads based on system load
-        target_workers = self.config.max_worker_threads
+        target_workers = self.config.worker_threads
         
         # If system is very loaded or latency is high, reduce resources
         if system_load > 0.8 or current_latency > 1.0:
@@ -1271,3 +1290,4 @@ class DetectionModule(Module):
         
         # Look up the vendor
         return self.mac_vendors.get(mac_prefix, "Unknown") 
+

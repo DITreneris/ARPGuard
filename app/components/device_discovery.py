@@ -4,6 +4,9 @@ import os
 import time
 from datetime import datetime
 from typing import Dict, List, Any, Optional, Tuple, Callable
+import socket
+import struct
+from scapy.all import ARP, Ether, srp
 
 from app.components.network_scanner import NetworkScanner
 from app.utils.logger import get_logger
@@ -242,4 +245,84 @@ class DeviceDiscovery:
         """
         results_dir = os.path.join(os.path.expanduser('~'), '.arpguard', 'scan_results')
         os.makedirs(results_dir, exist_ok=True)
-        return results_dir 
+        return results_dir
+
+    def discover(self, subnet: str, interface: Optional[str] = None, 
+                timeout: int = 2, ports: Optional[List[int]] = None,
+                classify: bool = True, progress_callback: Optional[Callable] = None) -> List[Dict]:
+        """
+        Discover devices on the network.
+        
+        Args:
+            subnet: Subnet to scan in CIDR format (e.g. '192.168.1.0/24')
+            interface: Network interface to use
+            timeout: Timeout in seconds for each probe
+            ports: List of ports to scan
+            classify: Whether to classify devices by type
+            progress_callback: Callback function for progress updates
+            
+        Returns:
+            List of discovered devices with their properties
+        """
+        devices = []
+        
+        try:
+            # Create ARP request
+            arp = ARP(pdst=subnet)
+            ether = Ether(dst="ff:ff:ff:ff:ff:ff")
+            packet = ether/arp
+
+            # Send packet and get responses
+            result = srp(packet, timeout=timeout, verbose=False, iface=interface)[0]
+            
+            # Process responses
+            for sent, received in result:
+                device = {
+                    'ip': received.psrc,
+                    'mac': received.hwsrc,
+                    'hostname': self._get_hostname(received.psrc)
+                }
+                
+                if classify:
+                    device['type'] = self._classify_device(received.hwsrc)
+                    
+                if ports:
+                    device['open_ports'] = self._scan_ports(received.psrc, ports)
+                    
+                devices.append(device)
+                
+                if progress_callback:
+                    progress_callback(len(devices), f"Found device: {device['ip']}")
+                    
+            return devices
+            
+        except Exception as e:
+            if progress_callback:
+                progress_callback(0, f"Error during discovery: {str(e)}")
+            return []
+            
+    def _get_hostname(self, ip: str) -> str:
+        """Get hostname for an IP address."""
+        try:
+            return socket.gethostbyaddr(ip)[0]
+        except:
+            return ""
+            
+    def _classify_device(self, mac: str) -> str:
+        """Classify device by MAC address."""
+        # TODO: Implement MAC address vendor lookup
+        return "unknown"
+        
+    def _scan_ports(self, ip: str, ports: List[int]) -> List[int]:
+        """Scan ports on a device."""
+        open_ports = []
+        for port in ports:
+            try:
+                sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+                sock.settimeout(0.1)
+                if sock.connect_ex((ip, port)) == 0:
+                    open_ports.append(port)
+                sock.close()
+            except:
+                continue
+        return open_ports 

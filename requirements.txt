@@ -1,15 +1,16 @@
 # ARPGuard Application Dependencies
 
 # Core Dependencies
-PyQt5>=5.15.9
+PyQt5==5.15.7
 scapy>=2.4.5
 netifaces>=0.11.0
 requests>=2.31.0
 pyyaml>=6.0.1
 psutil>=5.9.0
+scipy==1.7.3
 
 # UI Components
-pyqtgraph>=0.13.3
+pyqtgraph==0.12.4
 pyqtwebengine>=5.15.6
 
 # Packet Analysis
@@ -19,19 +20,19 @@ dnslib>=0.9.19
 
 # Utility Libraries
 python-dateutil>=2.8.2
-pyfiglet>=1.0.0
+pyfiglet==0.8.post1
 tabulate>=0.9.0
 colorama>=0.4.4
 termcolor>=2.0.1
 
 # Reporting
 jinja2>=3.1.0
-markdown>=3.5.0
+markdown==3.4.4
 weasyprint>=60.0
 beautifulsoup4>=4.12.0
 
 # Data Storage
-sqlalchemy>=2.0.0
+sqlalchemy>=1.4.0
 alembic>=1.12.0
 
 # Security & Cryptography
@@ -39,9 +40,8 @@ cryptography>=41.0.0
 bcrypt>=4.0.0
 
 # Machine Learning dependencies
-pandas>=2.1.0
-scipy>=1.11.0
-scikit-learn>=1.3.0
+pandas>=1.3.0
+scikit-learn>=0.24.2
 tensorflow==2.13.0
 keras==2.13.1
 torch>=1.9.0
@@ -52,17 +52,17 @@ lightgbm==3.3.5
 joblib>=1.3.0
 
 # Testing Dependencies
-pytest>=7.4.0
+pytest>=6.2.5
 pytest-qt>=4.1.0
-pytest-cov>=4.1.0
+pytest-cov>=2.12.0
 coverage>=7.3.0
 mock>=4.0.3
 
 # Development Tools
 pre-commit>=2.17.0
 pylint>=2.12.2
-mypy>=0.941
-black>=22.1.0
+mypy>=0.910
+black>=21.7b0
 
 # Documentation
 sphinx>=7.1.0
@@ -78,9 +78,9 @@ tqdm>=4.66.0
 psutil==5.9.5
 
 # Web/API
-fastapi==0.100.0
-uvicorn==0.23.1
-python-dotenv==1.0.0
+fastapi>=0.68.0
+uvicorn>=0.15.0
+python-dotenv>=0.19.0
 websockets>=10.4
 python-jose>=3.3.0
 pydantic>=2.0.0
@@ -126,8 +126,8 @@ deep-translator>=1.11.4
 googletrans>=4.0.0-rc1
 
 # Development tools
-black>=22.12.0
-flake8>=6.0.0
+black>=21.7b0
+flake8>=3.9.2
 isort>=5.11.4
 mypy>=0.991
 pytest>=7.2.1
@@ -190,7 +190,7 @@ pyqtwebengine==5.15.2
 
 # Network analysis
 scapy>=2.4.5,<2.5.0
-numpy>=1.19.5,<1.20.0
+numpy>=1.21.0
 netaddr>=0.8.0,<0.9.0
 
 # Testing and development
@@ -215,4 +215,10 @@ numpy>=1.19.5
 # Testing and development
 pytest>=6.2.5
 pytest-cov>=2.12.1
-mock>=4.0.3 
+mock>=4.0.3
+
+# Added from the code block
+types-requests>=2.26.0
+types-PyYAML>=5.4.3
+types-psutil>=5.8.0
+types-python-dateutil>=2.8.0 

@@ -1,12 +1,19 @@
 import { EventEmitter } from 'events';
 import { inflate, deflate } from 'pako'; // For data compression
 
+/**
+ * WebSocket service for real-time analytics and monitoring data
+ */
 class AnalyticsWebSocket extends EventEmitter {
   constructor() {
     super();
     this.socket = null;
     this.reconnectAttempts = 0;
-    this.maxReconnectAttempts = 10; // Increased from 5
+    this.maxReconnectAttempts = 5;
+    this.reconnectDelay = 1000;
+    this.subscribers = new Map();
+    this.isConnected = false;
+    this.url = process.env.REACT_APP_WS_URL || 'ws://localhost:8080/analytics';
     this.reconnectInterval = 2000; // Decreased from 5000
     this.maxReconnectInterval = 30000; // Max interval between retries
     this.pingInterval = 15000; // Decreased from 30000
@@ -16,200 +23,173 @@ class AnalyticsWebSocket extends EventEmitter {
     this.subscriptions = new Set(); // Track active subscriptions
     this.buffer = []; // Message buffer for disconnected state
     this.bufferSize = 100; // Max number of messages to buffer
-    this.connected = false;
     this.intentionalClose = false;
     this.useCompression = true; // Enable compression
     this.connectionStartTime = 0;
   }
 
   /**
-   * Connect to the WebSocket server
-   * @param {string} [url] - Optional WebSocket URL override
-   * @returns {Promise} Promise that resolves when connected
+   * Initialize the WebSocket connection
    */
-  connect(url) {
-    return new Promise((resolve, reject) => {
-      // Clear any existing connection
-      if (this.socket) {
-        this.socket.onclose = null; // Prevent auto-reconnect for intentional disconnect
-        this.socket.close();
-      }
+  connect() {
+    if (this.socket) {
+      this.close();
+    }
 
-      this.intentionalClose = false;
-      const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
-      const wsUrl = url || `${protocol}//${window.location.host}/ws/analytics`;
+    try {
+      this.socket = new WebSocket(this.url);
+      
+      this.socket.onopen = () => {
+        this.isConnected = true;
+        this.reconnectAttempts = 0;
+        this._notifySubscribers('connection', { status: 'connected' });
+      };
+      
+      this.socket.onmessage = (event) => {
+        try {
+          const data = JSON.parse(event.data);
+          if (data && data.type) {
+            this._notifySubscribers(data.type, data.payload);
+          }
+        } catch (err) {
+          console.error('Error parsing WebSocket message:', err);
+        }
+      };
+      
+      this.socket.onclose = () => {
+        this.isConnected = false;
+        this._notifySubscribers('connection', { status: 'disconnected' });
+        this._attemptReconnect();
+      };
+      
+      this.socket.onerror = (error) => {
+        console.error('WebSocket error:', error);
+        this._notifySubscribers('error', { message: 'Connection error' });
+      };
+      
+    } catch (err) {
+      console.error('Failed to create WebSocket connection:', err);
+      throw new Error('Connection failed');
+    }
+  }
 
+  /**
+   * Send data to the WebSocket server
+   * @param {string} type - Message type
+   * @param {object} data - Message payload
+   * @returns {boolean} - Whether the message was sent
+   */
+  send(type, data) {
+    if (!this.isConnected || !this.socket) {
+      return false;
+    }
+    
+    try {
+      const message = JSON.stringify({
+        type,
+        payload: data,
+        timestamp: new Date().toISOString()
+      });
+      
+      this.socket.send(message);
+      return true;
+    } catch (err) {
+      console.error('Error sending message:', err);
+      return false;
+    }
+  }
+
+  /**
+   * Subscribe to WebSocket events
+   * @param {string} eventType - Event type to subscribe to
+   * @param {function} callback - Callback function
+   * @returns {string} - Subscription ID
+   */
+  subscribe(eventType, callback) {
+    if (!this.subscribers.has(eventType)) {
+      this.subscribers.set(eventType, new Map());
+    }
+    
+    const id = this._generateId();
+    this.subscribers.get(eventType).set(id, callback);
+    
+    return id;
+  }
+
+  /**
+   * Unsubscribe from WebSocket events
+   * @param {string} eventType - Event type
+   * @param {string} id - Subscription ID
+   * @returns {boolean} - Whether the unsubscription was successful
+   */
+  unsubscribe(eventType, id) {
+    if (!this.subscribers.has(eventType)) {
+      return false;
+    }
+    
+    return this.subscribers.get(eventType).delete(id);
+  }
+
+  /**
+   * Close the WebSocket connection
+   */
+  close() {
+    if (this.socket) {
+      this.socket.close();
+      this.socket = null;
+      this.isConnected = false;
+    }
+  }
+
+  /**
+   * Attempt to reconnect to the WebSocket server
+   * @private
+   */
+  _attemptReconnect() {
+    if (this.reconnectAttempts >= this.maxReconnectAttempts) {
+      this._notifySubscribers('connection', { 
+        status: 'failed', 
+        message: 'Max reconnect attempts reached' 
+      });
+      return;
+    }
+    
+    this.reconnectAttempts++;
+    const delay = this.reconnectDelay * Math.pow(2, this.reconnectAttempts - 1);
+    
+    setTimeout(() => {
+      this.connect();
+    }, delay);
+  }
+
+  /**
+   * Notify all subscribers of an event
+   * @param {string} eventType - Event type
+   * @param {object} data - Event data
+   * @private
+   */
+  _notifySubscribers(eventType, data) {
+    if (!this.subscribers.has(eventType)) {
+      return;
+    }
+    
+    const eventSubscribers = this.subscribers.get(eventType);
+    eventSubscribers.forEach(callback => {
       try {
-        this.socket = new WebSocket(wsUrl);
-        this.connectionStartTime = Date.now();
-
-        // Set up one-time event handlers for this connection attempt
-        const onOpen = () => {
-          console.log('WebSocket connection established');
-          const connectionTime = Date.now() - this.connectionStartTime;
-          console.log(`Connection established in ${connectionTime}ms`);
-          
-          this.connected = true;
-          this.reconnectAttempts = 0;
-          this.startPingInterval();
-          
-          // Restore subscriptions
-          this.restoreSubscriptions();
-          
-          // Send buffered messages if any
-          this.flushBuffer();
-          
-          this.emit('connected');
-          resolve();
-
-          // Remove one-time handlers
-          this.socket.removeEventListener('open', onOpen);
-          this.socket.removeEventListener('error', onError);
-        };
-
-        const onError = (error) => {
-          console.error('WebSocket connection error:', error);
-          reject(error);
-          
-          // Remove one-time handlers
-          this.socket.removeEventListener('open', onOpen);
-          this.socket.removeEventListener('error', onError);
-        };
-
-        // Add one-time event listeners
-        this.socket.addEventListener('open', onOpen);
-        this.socket.addEventListener('error', onError);
-
-        // Regular event handlers
-        this.socket.onmessage = this.handleMessage.bind(this);
-        this.socket.onclose = this.handleClose.bind(this);
-        this.socket.onerror = this.handleError.bind(this);
-      } catch (error) {
-        console.error('Error creating WebSocket connection:', error);
-        this.handleReconnect();
-        reject(error);
+        callback(data);
+      } catch (err) {
+        console.error('Error in subscriber callback:', err);
       }
     });
   }
 
   /**
-   * Handle incoming WebSocket messages
-   * @param {MessageEvent} event - WebSocket message event
+   * Generate a unique ID for subscriptions
+   * @returns {string} - Unique ID
+   * @private
    */
-  handleMessage(event) {
-    try {
-      // Check if it's a binary message (compressed)
-      let data;
-      if (event.data instanceof Blob) {
-        // Handle binary data
-        const reader = new FileReader();
-        reader.onload = () => {
-          try {
-            // Decompress the data
-            const decompressed = inflate(new Uint8Array(reader.result), { to: 'string' });
-            const parsed = JSON.parse(decompressed);
-            this.processMessage(parsed);
-          } catch (error) {
-            console.error('Error processing binary WebSocket message:', error);
-          }
-        };
-        reader.readAsArrayBuffer(event.data);
-        return;
-      } else {
-        // Handle text data
-        data = JSON.parse(event.data);
-        this.processMessage(data);
-      }
-    } catch (error) {
-      console.error('Error parsing WebSocket message:', error);
-      this.emit('error', { type: 'parse_error', error });
-    }
-  }
-
-  /**
-   * Process parsed WebSocket message
-   * @param {Object} data - Parsed message data
-   */
-  processMessage(data) {
-    // Reset pong timer if we get any message (implicit pong)
-    this.resetPongTimer();
-
-    switch (data.type) {
-      case 'metrics_update':
-        this.emit('metrics', data.data);
-        break;
-      case 'alerts_update':
-        this.emit('alerts', data.data);
-        break;
-      case 'system_status':
-        this.emit('systemStatus', data.data);
-        break;
-      case 'pong':
-        // Explicit pong response
-        break;
-      case 'error':
-        console.error('Server error:', data.message);
-        this.emit('error', { type: 'server_error', message: data.message });
-        break;
-      default:
-        console.warn('Unknown message type:', data.type);
-    }
-  }
-
-  /**
-   * Handle WebSocket connection closure
-   * @param {CloseEvent} event - WebSocket close event
-   */
-  handleClose(event) {
-    this.connected = false;
-    this.stopPingInterval();
-    console.log(`WebSocket connection closed: ${event.code} ${event.reason}`);
-    
-    // Don't attempt to reconnect if the closure was intentional
-    if (!this.intentionalClose) {
-      this.handleReconnect();
-    }
-    
-    this.emit('disconnected', { code: event.code, reason: event.reason });
-  }
-
-  /**
-   * Handle WebSocket errors
-   * @param {Event} error - WebSocket error event
-   */
-  handleError(error) {
-    console.error('WebSocket error:', error);
-    this.emit('error', { type: 'connection_error', error });
-  }
-
-  /**
-   * Attempt to reconnect to the WebSocket server
-   */
-  handleReconnect() {
-    if (this.reconnectAttempts < this.maxReconnectAttempts) {
-      this.reconnectAttempts++;
-      
-      // Exponential backoff with jitter
-      const baseDelay = Math.min(
-        this.reconnectInterval * Math.pow(1.5, this.reconnectAttempts - 1),
-        this.maxReconnectInterval
-      );
-      const jitter = Math.random() * 0.5 + 0.75; // Random between 0.75 and 1.25
-      const delay = Math.floor(baseDelay * jitter);
-      
-      console.log(`Attempting to reconnect (${this.reconnectAttempts}/${this.maxReconnectAttempts}) in ${delay}ms...`);
-      
-      this.emit('reconnecting', { 
-        attempt: this.reconnectAttempts, 
-        maxAttempts: this.maxReconnectAttempts,
-        delay 
-      });
-      
-      setTimeout(() => this.connect(), delay);
-    } else {
-      console.error('Max reconnection attempts reached');
-      this.emit('reconnect_failed');
-    }
+  _generateId() {
+    return `sub_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
   }
 
   /**
@@ -273,7 +253,7 @@ class AnalyticsWebSocket extends EventEmitter {
       this.socket.close();
     }
     
-    this.connected = false;
+    this.isConnected = false;
     this.subscriptions.clear();
     this.buffer = [];
   }
@@ -282,11 +262,11 @@ class AnalyticsWebSocket extends EventEmitter {
    * Subscribe to a topic
    * @param {string} topic - Topic to subscribe to
    */
-  subscribe(topic) {
+  subscribeToTopic(topic) {
     // Add to subscriptions set
     this.subscriptions.add(topic);
     
-    if (this.connected && this.socket && this.socket.readyState === WebSocket.OPEN) {
+    if (this.isConnected && this.socket && this.socket.readyState === WebSocket.OPEN) {
       this.socket.send(JSON.stringify({
         type: 'subscribe',
         topic: topic
@@ -304,11 +284,11 @@ class AnalyticsWebSocket extends EventEmitter {
    * Unsubscribe from a topic
    * @param {string} topic - Topic to unsubscribe from
    */
-  unsubscribe(topic) {
+  unsubscribeFromTopic(topic) {
     // Remove from subscriptions set
     this.subscriptions.delete(topic);
     
-    if (this.connected && this.socket && this.socket.readyState === WebSocket.OPEN) {
+    if (this.isConnected && this.socket && this.socket.readyState === WebSocket.OPEN) {
       this.socket.send(JSON.stringify({
         type: 'unsubscribe',
         topic: topic
@@ -353,7 +333,7 @@ class AnalyticsWebSocket extends EventEmitter {
    * Send all buffered messages
    */
   flushBuffer() {
-    if (!this.connected || !this.socket || this.socket.readyState !== WebSocket.OPEN) {
+    if (!this.isConnected || !this.socket || this.socket.readyState !== WebSocket.OPEN) {
       return;
     }
     
@@ -367,8 +347,8 @@ class AnalyticsWebSocket extends EventEmitter {
    * Send a message with optional compression
    * @param {Object} data - Data to send
    */
-  send(data) {
-    if (!this.connected || !this.socket || this.socket.readyState !== WebSocket.OPEN) {
+  sendWithCompression(data) {
+    if (!this.isConnected || !this.socket || this.socket.readyState !== WebSocket.OPEN) {
       this.addToBuffer(data);
       return;
     }
@@ -395,7 +375,7 @@ class AnalyticsWebSocket extends EventEmitter {
    * @returns {boolean} Whether the WebSocket is connected
    */
   isConnected() {
-    return this.connected && this.socket && this.socket.readyState === WebSocket.OPEN;
+    return this.isConnected && this.socket && this.socket.readyState === WebSocket.OPEN;
   }
 
   /**
@@ -413,6 +393,7 @@ class AnalyticsWebSocket extends EventEmitter {
   }
 }
 
-// Create and export a singleton instance
+// Create a singleton instance
 const analyticsWebSocket = new AnalyticsWebSocket();
+
 export default analyticsWebSocket; 

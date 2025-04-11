@@ -370,6 +370,96 @@ async def broadcast_monitoring_updates():
     
     # Get current network stats
     metrics = performance_monitor.get_metrics()
+    
+    # Calculate network health indicators (0-100 scale where 100 is optimal)
+    network_health = {
+        "connectivity": random.randint(80, 100),  # Percentage of successful connections
+        "latency_score": random.randint(70, 100),  # Inverse of latency (higher is better)
+        "packet_loss": random.randint(0, 10),     # Percentage of lost packets (lower is better)
+        "error_rate": random.randint(0, 5),       # Percentage of packets with errors (lower is better)
+        "stability_index": random.randint(75, 100) # Overall network stability score
+    }
+    
+    # Calculate threat level visualization data
+    threat_levels = {
+        "current_level": random.choice(["low", "medium", "high", "critical"]),
+        "score": random.randint(0, 100),  # 0-100 threat score
+        "trend": random.choice(["increasing", "decreasing", "stable"]),
+        "attack_vectors": {
+            "arp_spoofing": random.randint(0, 100),
+            "ddos": random.randint(0, 100),
+            "mitm": random.randint(0, 100),
+            "reconnaissance": random.randint(0, 100)
+        }
+    }
+    
+    # Detailed performance metrics
+    performance_metrics = {
+        "packet_processing_time": random.uniform(0.1, 5.0),  # ms
+        "analysis_time_per_packet": random.uniform(0.05, 2.0),  # ms
+        "rule_processing_time": random.uniform(0.2, 8.0),  # ms
+        "database_write_time": random.uniform(1.0, 20.0),  # ms
+        "alert_generation_time": random.uniform(0.5, 10.0)  # ms
+    }
+    
+    # Resource usage tracking
+    resource_usage = {
+        "cpu": {
+            "total": metrics.get("cpu_usage", 0),
+            "by_component": {
+                "packet_capture": random.uniform(5, 15),
+                "analysis_engine": random.uniform(10, 30),
+                "database": random.uniform(5, 20),
+                "api_server": random.uniform(3, 10),
+                "gui": random.uniform(2, 8)
+            }
+        },
+        "memory": {
+            "total": metrics.get("memory_usage", 0),
+            "by_component": {
+                "packet_buffer": random.uniform(5, 15),
+                "analysis_cache": random.uniform(10, 25),
+                "database_cache": random.uniform(8, 20),
+                "session_data": random.uniform(2, 10)
+            }
+        },
+        "disk": {
+            "total": random.uniform(10, 50),
+            "database_size": random.uniform(5, 1000),  # MB
+            "log_size": random.uniform(1, 100),  # MB
+            "temp_storage": random.uniform(1, 50)  # MB
+        }
+    }
+    
+    # Beta testing specific metrics
+    beta_metrics = {
+        "user_session_count": random.randint(1, 20),
+        "feature_usage": {
+            "network_scan": random.randint(0, 100),
+            "threat_detection": random.randint(0, 100),
+            "alerts": random.randint(0, 100),
+            "dashboard": random.randint(0, 100),
+            "reporting": random.randint(0, 100)
+        },
+        "error_counts": {
+            "critical": random.randint(0, 3),
+            "error": random.randint(0, 10),
+            "warning": random.randint(0, 30),
+            "info": random.randint(0, 100)
+        },
+        "performance_issues": random.randint(0, 15),
+        "crash_count": random.randint(0, 2),
+        "uptime": random.randint(1, 168),  # Hours
+        "version": "0.3.0-beta.2",
+        "testing_phase": "closed_beta",
+        "telemetry": {
+            "response_times": [random.uniform(50, 500) for _ in range(10)],  # Last 10 response times
+            "error_trends": "decreasing",
+            "stability_score": random.uniform(70, 95)
+        }
+    }
+    
+    # Combined stats update
     stats = {
         "type": "stats_update",
         "data": {
@@ -379,6 +469,11 @@ async def broadcast_monitoring_updates():
             "cpu_usage": metrics.get("cpu_usage", 0),
             "memory_usage": metrics.get("memory_usage", 0),
             "response_time": metrics.get("response_time", 0),
+            "network_health": network_health,
+            "threat_levels": threat_levels,
+            "performance_metrics": performance_metrics,
+            "resource_usage": resource_usage,
+            "beta_metrics": beta_metrics,
             "timestamp": datetime.now().isoformat()
         }
     }

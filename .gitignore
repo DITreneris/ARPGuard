@@ -19,6 +19,73 @@ wheels/
 *.egg-info/
 .installed.cfg
 *.egg
+MANIFEST
+.env
+.venv
+env/
+venv/
+ENV/
+env.bak/
+venv.bak/
+.python-version
+
+# Node
+node_modules/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+.pnpm-debug.log*
+.npm
+.yarn/cache
+.yarn/unplugged
+.yarn/build-state.yml
+.yarn/install-state.gz
+.pnp.*
+
+# IDE
+.idea/
+.vscode/
+*.swp
+*.swo
+.DS_Store
+
+# Testing
+.coverage
+htmlcov/
+.pytest_cache/
+.tox/
+.nox/
+.hypothesis/
+
+# Logs
+*.log
+logs/
+data/telemetry/
+
+# Backup files
+*.bak
+*.bak.*
+backup/
+
+# Temporary files
+*.tmp
+*.temp
+*.patch
+*.ps1
+*.bat
+
+# Documentation
+*.md
+!README.md
+!CONTRIBUTING.md
+!LICENSE.md
+
+# Project specific
+k8s/
+validation_report.*
+test_results.md
+investor_qa.md
+production_setup_summary.md
 
 # Virtual Environment
 venv/
@@ -53,13 +120,6 @@ log/
 # Database
 *.db
 *.sqlite3
-
-# Testing
-.coverage
-htmlcov/
-.pytest_cache/
-.tox/
-.nox/
 
 # Jupyter Notebook
 .ipynb_checkpoints

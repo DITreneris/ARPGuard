@@ -1,74 +1,165 @@
-# ARPGuard Configuration File
-# Customized for investor demo
+# ARPGuard Main Configuration File
+
+# Basic configuration
+app_name: ARPGuard
+app_version: 2.1.0
+debug_mode: false
+log_level: INFO
+
+# Network configuration
+network:
+  monitor_interface: Ethernet
+  backup_interface: Wi-Fi
+  promiscuous_mode: true
+  packet_buffer_size: 65536
+  arp_cache_timeout: 300
+
+# Security configuration
+security:
+  encryption_key_file: keys/encryption.key
+  ssl_enabled: true
+  ssl_cert: certs/ssl_cert.pem
+  ssl_key: certs/ssl_key.pem
+  ip_blacklist:
+    - 192.168.1.100
+    - 10.0.0.200
+
+# RBAC configuration
+rbac:
+  enabled: true
+  roles:
+    - name: admin
+      description: Administrator role with full access
+      permissions:
+        - dashboard:view
+        - dashboard:edit
+        - alerts:view
+        - alerts:edit
+        - alerts:delete
+        - settings:view
+        - settings:edit
+        - users:view
+        - users:edit
+        - users:delete
+        
+    - name: operator
+      description: Operator role with operational access
+      permissions:
+        - dashboard:view
+        - alerts:view
+        - alerts:edit
+        - settings:view
+        
+    - name: viewer
+      description: Read-only access for monitoring
+      permissions:
+        - dashboard:view
+        - alerts:view
+
+# VLAN configuration
+vlan:
+  enabled: true
+  monitor_tagged_frames: true
+  vlan_ids:
+    - 10
+    - 20
+    - 30
+  priority_vlans:
+    - 10
+
+# Database configuration
+database:
+  type: sqlite
+  path: data/arpguard.db
+  backup_interval: 86400
+
+# Alerting configuration
+alerting:
+  email_enabled: true
+  email_server: smtp.example.com
+  email_port: 587
+  email_use_tls: true
+  email_from: alerts@arpguard.com
+  email_to: admin@company.com
+  webhook_enabled: false
+  webhook_url: https://example.com/webhook
+  syslog_enabled: true
+  syslog_facility: LOG_LOCAL0
+
+# Integrations
+integrations:
+  siem:
+    enabled: true
+    type: syslog
+    host: 10.0.0.50
+    port: 514
+    protocol: UDP
+  metrics:
+    enabled: true
+    prometheus_endpoint: /metrics
+  
+# Performance configuration
+performance:
+  thread_count: 4
+  max_memory_mb: 1024
+  log_rotation_size_mb: 100
+  log_keep_days: 30
+
+# ARPGuard Lite Tier Configuration
 
 general:
   log_level: INFO
-  log_file: arpguard.log
   color_output: true
   progress_indicators: true
 
 scan:
-  default_interface: "eth0"
-  default_timeout: 3
-  default_ports:
-    - 22    # SSH
-    - 80    # HTTP
-    - 443   # HTTPS
-    - 3389  # RDP
-    - 5900  # VNC
-    - 8080  # Alternative HTTP
-  default_subnet: "192.168.1.0/24"
+  default_timeout: 2
+  default_ports: [22, 80, 443]
   classify_devices: true
   output_format: table
+  default_interface: auto
 
 monitor:
-  default_interface: "eth0"
-  alert_level: high
-  check_interval: 1
+  alert_level: medium
+  check_interval: 5
   output_format: normal
-  known_devices_file: known_devices.json
+  default_interface: auto
 
 analyze:
-  pcap_dir: captures
-  max_packets: 20000
-  filter_expression: "tcp or udp or arp"
   output_format: table
+  max_packets: 1000
+  filter_expression: ""
 
 export:
   default_format: json
-  default_dir: investor_demo_exports
   include_metadata: true
 
-threat_intelligence:
-  # API Keys for threat intelligence services
-  abuseipdb:
-    api_key: "YOUR_ABUSEIPDB_API_KEY"
-    enabled: true
-    update_interval: 3600  # 1 hour
-  
-  virustotal:
-    api_key: "YOUR_VIRUSTOTAL_API_KEY"
-    enabled: true
-    update_interval: 3600  # 1 hour
-  
-  otx:
-    api_key: "YOUR_OTX_API_KEY"
-    enabled: true
-    update_interval: 3600  # 1 hour
-  
-  emerging_threats:
-    api_key: "YOUR_EMERGING_THREATS_API_KEY"
-    enabled: true
-    update_interval: 3600  # 1 hour
-  
-  # Cache configuration
-  cache:
-    enabled: true
-    max_size: 10000
-    ttl: 86400  # 24 hours
-  
-  # Update settings
-  update_on_start: true
-  parallel_updates: true
-  max_retries: 3
-  retry_delay: 60  # 1 minute 
+network:
+  monitor_interface: auto
+  backup_interface: auto
+  promiscuous_mode: true
+  packet_buffer_size: 65536
+  arp_cache_timeout: 300
+
+security:
+  encryption_enabled: true
+  ssl_enabled: true
+  ip_blacklist: []
+
+database:
+  type: sqlite
+  path: data/arpguard.db
+  backup_interval: 86400
+
+alerting:
+  email_enabled: false
+  syslog_enabled: false
+  webhook_enabled: false
+
+tier:
+  name: lite
+  features:
+    - basic_monitoring
+    - threat_detection
+    - simple_reporting
+    - local_storage

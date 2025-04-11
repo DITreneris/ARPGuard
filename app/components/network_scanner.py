@@ -23,14 +23,33 @@ class NetworkScanner:
         self.scanning = False
         self.scan_thread = None
         self.config = get_config()
-        self.timeout = self.config.get("scanner.timeout", 3)
-        self.batch_size = self.config.get("scanner.batch_size", 64)
-        self.cache = {}  # Cache for device information
-        self.cache_timeout = self.config.get("scanner.cache_timeout", 60 * 30)  # 30 minutes default
+        # Increase default timeout for better reliability
+        self.timeout = self.config.get("scanner.timeout", 5)  
+        # Reduce default batch size to avoid overwhelming the network
+        self.batch_size = self.config.get("scanner.batch_size", 32)  
+        self.cache = {}
+        self.cache_timeout = self.config.get("scanner.cache_timeout", 60 * 30)
+        
+        # Check for root/admin privileges
+        self._check_privileges()
         
         # Create scan results directory if saving is enabled
         if self.config.get("scanner.save_results", True):
             self._ensure_results_dir()
+        
+    def _check_privileges(self):
+        """Check if the program has the necessary privileges for ARP scanning."""
+        try:
+            # Try to create a raw socket which requires admin/root
+            s = socket.socket(socket.AF_INET, socket.SOCK_RAW, socket.IPPROTO_RAW)
+            s.close()
+            logger.debug("Running with sufficient privileges for network scanning")
+        except PermissionError:
+            logger.error("Insufficient privileges. Network scanning requires root/admin privileges")
+            raise PermissionError("Network scanning requires root/admin privileges")
+        except Exception as e:
+            logger.error(f"Error checking privileges: {e}")
+            raise
         
     def get_default_gateway(self) -> Tuple[Optional[str], Optional[str]]:
         """Get the default gateway IP and interface.
@@ -236,49 +255,50 @@ class NetworkScanner:
             ether = Ether(dst="ff:ff:ff:ff:ff:ff")
             packet = ether/arp
             
-            # Send packets and capture responses
-            logger.debug(f"Sending ARP requests to {len(ip_strings)} IPs with timeout: {timeout}s")
-            result = srp(packet, timeout=timeout, verbose=0)[0]
+            # Send packets and capture responses with retry mechanism
+            max_retries = 2
+            for retry in range(max_retries):
+                try:
+                    logger.debug(f"Sending ARP requests to {len(ip_strings)} IPs (attempt {retry + 1}/{max_retries})")
+                    result = srp(packet, timeout=timeout, verbose=0, retry=1)[0]
+                    break
+                except Exception as e:
+                    if retry == max_retries - 1:
+                        logger.error(f"Failed to send ARP requests after {max_retries} attempts: {e}")
+                        return []
+                    logger.warning(f"ARP request failed (attempt {retry + 1}), retrying: {e}")
+                    time.sleep(1)  # Wait before retry
             
             # Process results
             devices = []
             for sent, received in result:
-                mac_address = received.hwsrc
-                ip_address = received.psrc
-                
-                # Check if we have this device in cache
-                if ip_address in self.cache:
-                    cached_info, _ = self.cache[ip_address]
-                    # If MAC address matches, use cached info
-                    if cached_info['mac'] == mac_address:
-                        device = cached_info.copy()
-                        device['time'] = datetime.now().isoformat()
-                        # Refreshing the timestamp in cache
-                        self.cache[ip_address] = (cached_info, time.time())
-                        devices.append(device)
-                        logger.debug(f"Using cached device: {ip_address} ({mac_address})")
+                try:
+                    mac_address = received.hwsrc
+                    ip_address = received.psrc
+                    
+                    # Basic validation of MAC and IP
+                    if not mac_address or not ip_address:
                         continue
-                
-                # Get hostname and vendor
-                hostname = self._get_hostname(ip_address)
-                vendor = get_vendor_name(mac_address)
-                
-                device = {
-                    'ip': ip_address,
-                    'mac': mac_address,
-                    'name': hostname,
-                    'vendor': vendor,
-                    'time': datetime.now().isoformat()
-                }
-                devices.append(device)
-                
-                # Update cache
-                self.cache[ip_address] = (device.copy(), time.time())
-                
-                logger.debug(f"Found device: {ip_address} ({mac_address}) - {hostname} [{vendor}]")
-                
+                        
+                    # Get device info with error handling
+                    device_info = {
+                        'ip': ip_address,
+                        'mac': mac_address,
+                        'vendor': get_vendor_name(mac_address) or 'Unknown',
+                        'hostname': self._get_hostname(ip_address),
+                        'last_seen': datetime.now().isoformat()
+                    }
+                    
+                    # Update cache
+                    self.cache[ip_address] = (device_info, time.time())
+                    devices.append(device_info)
+                    
+                except Exception as e:
+                    logger.warning(f"Error processing device {ip_address if 'ip_address' in locals() else 'unknown'}: {e}")
+                    continue
+            
             return devices
-                
+            
         except Exception as e:
             logger.error(f"Batch scan error: {str(e)}")
             return []

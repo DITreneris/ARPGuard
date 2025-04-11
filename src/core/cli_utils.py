@@ -9,7 +9,7 @@ import json
 import csv
 import enum
 import logging
-from typing import Dict, Any, List, Optional, Union, TextIO
+from typing import Dict, Any, List, Optional, Union, TextIO, Tuple
 from dataclasses import dataclass, field
 from io import StringIO
 import io
@@ -189,29 +189,94 @@ class OutputFormatter:
             else:
                 print(str(data), file=self.output_stream)
 
-
-class ProgressBar:
-    """Simple CLI progress bar"""
-    
-    def __init__(self, total: int, width: int = 50, fill_char: str = "█", empty_char: str = "░"):
+    def format_output(self, data: Any, format_type: OutputFormat = OutputFormat.TEXT, headers: Optional[List[str]] = None) -> str:
         """
-        Initialize progress bar
+        Format data in the specified format
         
         Args:
-            total: Total number of items
+            data: Data to format (dict, list, str, etc.)
+            format_type: Output format
+            headers: Optional headers for tabular data
+            
+        Returns:
+            Formatted string
+        """
+        if format_type == OutputFormat.JSON:
+            return self.format_json(data)
+            
+        elif format_type == OutputFormat.CSV:
+            if isinstance(data, list) and isinstance(data[0], list):
+                return self.format_csv(headers or [], data)
+            elif isinstance(data, dict):
+                # Convert dict to tabular data
+                rows = [[key, value] for key, value in data.items()]
+                return self.format_csv(headers or ["Key", "Value"], rows)
+            else:
+                return f"Error: Cannot format {type(data)} as CSV"
+                
+        elif format_type == OutputFormat.TABLE or format_type == OutputFormat.PRETTY:
+            if isinstance(data, TabularData):
+                return self.format_table(data, format_type == OutputFormat.PRETTY)
+            elif isinstance(data, list) and isinstance(data[0], list):
+                # Create TabularData from list of lists
+                tabular_data = TabularData()
+                tabular_data.headers = headers or []
+                tabular_data.rows = data
+                return self.format_table(tabular_data, format_type == OutputFormat.PRETTY)
+            elif isinstance(data, dict):
+                # Convert dict to tabular data
+                tabular_data = TabularData()
+                tabular_data.headers = headers or ["Key", "Value"]
+                tabular_data.rows = [[key, value] for key, value in data.items()]
+                return self.format_table(tabular_data, format_type == OutputFormat.PRETTY)
+            else:
+                return f"Error: Cannot format {type(data)} as table"
+        
+        else:  # TEXT format or fallback
+            if isinstance(data, str):
+                return data
+            elif isinstance(data, dict):
+                # Format dict as text
+                lines = [f"{key}: {value}" for key, value in data.items()]
+                return "\n".join(lines)
+            elif isinstance(data, list):
+                # Format list as text
+                return "\n".join(str(item) for item in data)
+            else:
+                return str(data)
+
+
+class ProgressBar:
+    """Progress bar for CLI operations"""
+    
+    def __init__(self, total: int, width: int = 50, fill_char: str = "█", empty_char: str = "░", description: str = ""):
+        """Initialize progress bar
+        
+        Args:
+            total: Total number of steps
             width: Width of the progress bar in characters
             fill_char: Character to use for filled portion
             empty_char: Character to use for empty portion
+            description: Optional description to display before the progress bar
         """
         self.total = total
         self.width = width
         self.fill_char = fill_char
         self.empty_char = empty_char
+        self.description = description
         self.current = 0
-        
+        self.started = False
+    
+    def start(self):
+        """Start the progress bar"""
+        if not self.started:
+            if self.description:
+                print(self.description)
+            self.started = True
+            self.update(0)
+    
     def update(self, current: Optional[int] = None) -> str:
-        """
-        Update progress bar
+        """Update progress
         
         Args:
             current: Current progress (if None, increment by 1)
@@ -224,17 +289,30 @@ class ProgressBar:
         else:
             self.current += 1
             
-        # Calculate percentage
-        percentage = self.current / self.total
-        
-        # Calculate filled width
-        filled_width = int(self.width * percentage)
-        
-        # Create progress bar
+        progress = self.current / self.total
+        filled_width = int(self.width * progress)
         bar = self.fill_char * filled_width + self.empty_char * (self.width - filled_width)
+        percent = int(progress * 100)
         
-        # Return progress bar with percentage
-        return f"[{bar}] {int(percentage * 100)}% ({self.current}/{self.total})"
+        # Move cursor to start of line and clear it
+        sys.stdout.write('\r')
+        sys.stdout.write(' ' * (self.width + 10))
+        sys.stdout.write('\r')
+        
+        # Write progress bar
+        sys.stdout.write(f"[{bar}] {percent}% ({self.current}/{self.total})")
+        sys.stdout.flush()
+        
+        return f"[{bar}] {percent}% ({self.current}/{self.total})"
+    
+    def complete(self):
+        """Complete the progress bar"""
+        self.update(self.total)
+        print()  # New line after completion
+    
+    def stop(self):
+        """Stop the progress bar"""
+        print()  # New line after stopping
 
 
 class CLIModule:
@@ -1000,3 +1078,248 @@ def show_help(args: List[str]) -> int:
         return 0
     else:
         return 1 
+import time
+import threading
+import sys
+import shutil
+
+class Spinner:
+    """Spinner animation for command-line interfaces"""
+    
+    def __init__(self, message: str = "Processing", chars: str = "⠋⠙⠹⠸⠼⠴⠦⠧⠇⠏", delay: float = 0.1):
+        """
+        Initialize the spinner
+        
+        Args:
+            message: Message to display next to the spinner
+            chars: Characters to use for spinner animation
+            delay: Delay between spinner updates in seconds
+        """
+        self.message = message
+        self.chars = chars
+        self.delay = delay
+        self.running = False
+        self.thread = None
+        self.spinner_idx = 0
+        self.terminal_width = shutil.get_terminal_size().columns
+        
+    def _spin(self):
+        """Internal method to update spinner"""
+        while self.running:
+            # Get current spinner character
+            char = self.chars[self.spinner_idx % len(self.chars)]
+            
+            # Construct and print line with spinner
+            line = f"\r{char} {self.message}"
+            
+            # Truncate if too long for terminal
+            if len(line) > self.terminal_width:
+                line = line[:self.terminal_width - 3] + "..."
+            
+            # Clear to end of line
+            line = line.ljust(self.terminal_width)
+            
+            # Print spinner
+            sys.stdout.write(line)
+            sys.stdout.flush()
+            
+            # Update spinner index
+            self.spinner_idx += 1
+            
+            # Sleep before next update
+            time.sleep(self.delay)
+    
+    def start(self):
+        """Start the spinner animation"""
+        if self.running:
+            return
+            
+        self.running = True
+        self.thread = threading.Thread(target=self._spin)
+        self.thread.daemon = True
+        self.thread.start()
+    
+    def stop(self):
+        """Stop the spinner animation"""
+        self.running = False
+        if self.thread:
+            self.thread.join()
+        
+        # Clear spinner line
+        sys.stdout.write("\r" + " " * self.terminal_width + "\r")
+        sys.stdout.flush()
+        
+    def update_message(self, message: str):
+        """
+        Update spinner message
+        
+        Args:
+            message: New message
+        """
+        self.message = message
+
+
+class InteractiveShell:
+    """Interactive shell for CLI applications"""
+    
+    def __init__(self, prompt: str = "> ", history_file: str = None):
+        """
+        Initialize interactive shell
+        
+        Args:
+            prompt: Command prompt string
+            history_file: Path to history file (if any)
+        """
+        self.prompt = prompt
+        self.history_file = history_file
+        self.running = False
+        self.command_handlers = {}
+        self.help_messages = {}
+        self.aliases = {}
+        
+        # Register built-in commands
+        self.register_command("help", self._help_command, "Show help for commands")
+        self.register_command("exit", self._exit_command, "Exit the shell")
+        self.register_command("quit", self._exit_command, "Exit the shell")
+        
+        # Try to import readline for better input handling
+        try:
+            import readline
+            self.readline_available = True
+            
+            # Set up history file
+            if history_file:
+                try:
+                    readline.read_history_file(history_file)
+                except FileNotFoundError:
+                    # History file doesn't exist yet
+                    pass
+        except ImportError:
+            self.readline_available = False
+    
+    def register_command(self, command: str, handler: callable, help_message: str = None):
+        """
+        Register a command handler
+        
+        Args:
+            command: Command string
+            handler: Function to call when command is entered
+            help_message: Help message for command
+        """
+        self.command_handlers[command] = handler
+        if help_message:
+            self.help_messages[command] = help_message
+    
+    def register_alias(self, alias: str, command: str):
+        """
+        Register an alias for a command
+        
+        Args:
+            alias: Alias string
+            command: Command to execute
+        """
+        if command in self.command_handlers:
+            self.aliases[alias] = command
+        else:
+            print(f"Cannot create alias for unknown command: {command}")
+    
+    def _help_command(self, args: List[str]) -> bool:
+        """Handle help command"""
+        if args:
+            # Help for specific command
+            command = args[0]
+            if command in self.help_messages:
+                print(f"{command}: {self.help_messages[command]}")
+            else:
+                print(f"No help available for '{command}'")
+        else:
+            # General help - list all commands
+            print("Available commands:")
+            for cmd, help_text in sorted(self.help_messages.items()):
+                print(f"  {cmd:<15} - {help_text}")
+            
+            if self.aliases:
+                print("\nAliases:")
+                for alias, cmd in sorted(self.aliases.items()):
+                    print(f"  {alias:<15} -> {cmd}")
+        
+        return True
+    
+    def _exit_command(self, args: List[str]) -> bool:
+        """Handle exit command"""
+        self.running = False
+        return True
+    
+    def _parse_command(self, command_line: str) -> (str, List[str]):
+        """
+        Parse command line into command and arguments
+        
+        Args:
+            command_line: Command line to parse
+            
+        Returns:
+            Tuple of (command, arguments)
+        """
+        parts = command_line.strip().split()
+        if not parts:
+            return "", []
+            
+        command = parts[0].lower()
+        
+        # Check if this is an alias
+        if command in self.aliases:
+            command = self.aliases[command]
+            
+        args = parts[1:] if len(parts) > 1 else []
+        
+        return command, args
+    
+    def run(self) -> int:
+        """
+        Run the interactive shell loop
+        
+        Returns:
+            Exit code
+        """
+        self.running = True
+        
+        print("Type 'help' for a list of commands. Type 'exit' to quit.")
+        
+        while self.running:
+            try:
+                # Get input with prompt
+                command_line = input(self.prompt)
+                
+                # Skip empty lines
+                if not command_line.strip():
+                    continue
+                
+                # Parse command
+                command, args = self._parse_command(command_line)
+                
+                # Execute command if registered
+                if command in self.command_handlers:
+                    try:
+                        self.command_handlers[command](args)
+                    except Exception as e:
+                        print(f"Error executing command: {e}")
+                else:
+                    print(f"Unknown command: {command}")
+            
+            except KeyboardInterrupt:
+                print("\nInterrupted.")
+            
+            except EOFError:
+                # Handle Ctrl+D
+                print("\nExiting...")
+                self.running = False
+        
+        # Save history when exiting
+        if self.readline_available and self.history_file:
+            try:
+                import readline
+                readline.write_history_file(self.history_file)
+            except Exception as e:
+                print(f"Error saving command history: {e}")
+        
+        return 0

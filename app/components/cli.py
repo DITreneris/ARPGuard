@@ -39,6 +39,22 @@ class ARPGuardCLI:
               arpguard export --output results.json --format json
         ''')
         
+        # Check for root/admin privileges first
+        if not self._check_privileges():
+            print(f"{Fore.RED}Error: ARPGuard requires root/admin privileges to run.{Style.RESET_ALL}")
+            print("Please run the program with sudo (Linux/Mac) or as Administrator (Windows).")
+            sys.exit(1)
+        
+        # Initialize components first
+        try:
+            self.device_discovery = DeviceDiscovery()
+            self.arp_cache_monitor = ARPCacheMonitor()
+            self.packet_capture = PacketCapture()
+            self.config_manager = get_config_manager()
+        except Exception as e:
+            print(f"{Fore.RED}Error initializing components: {str(e)}{Style.RESET_ALL}")
+            sys.exit(1)
+        
         self.parser = argparse.ArgumentParser(
             description='ARPGuard - Network Security Monitoring Tool',
             formatter_class=argparse.RawDescriptionHelpFormatter,
@@ -139,12 +155,17 @@ class ARPGuardCLI:
                   arpguard export --output threats.json --format json --type threats
             '''),
         }
-        
-        # Initialize components
-        self.device_discovery = DeviceDiscovery()
-        self.arp_cache_monitor = ARPCacheMonitor()
-        self.packet_capture = PacketCapture()
-        self.config_manager = get_config_manager()
+    
+    def _check_privileges(self) -> bool:
+        """Check if the program has the necessary privileges."""
+        try:
+            if os.name == 'nt':  # Windows
+                import ctypes
+                return ctypes.windll.shell32.IsUserAnAdmin() != 0
+            else:  # Unix-like
+                return os.geteuid() == 0
+        except Exception:
+            return False
     
     def _init_help_command(self):
         """Initialize the help command."""
@@ -350,59 +371,61 @@ class ARPGuardCLI:
             self.parser.print_help()
     
     def _handle_scan(self, args):
-        """Handle scan command."""
-        print(formatter.header("Network Scan", 60))
-        
-        # Parse ports if provided
-        ports = None
-        if args.ports:
-            try:
-                ports = [int(p.strip()) for p in args.ports.split(',')]
-            except ValueError:
-                print(formatter.error("Invalid port numbers"))
-                return 1
-        else:
-            # Use default ports from config if not specified
-            ports = self.config_manager.get('scan', 'default_ports')
-        
-        # Use interface and subnet from config if not provided
-        interface = args.interface or self.config_manager.get('scan', 'default_interface')
-        subnet = args.subnet or self.config_manager.get('scan', 'default_subnet')
-        
-        if not subnet:
-            print(formatter.warning("No subnet specified and no default configured. Scanning local subnet."))
-        
+        """Handle the scan command."""
         try:
-            print(formatter.info(f"Starting scan with timeout {args.timeout}s..."))
-            start_time = datetime.now()
+            print(f"{Fore.CYAN}Starting network scan...{Style.RESET_ALL}")
             
-            devices = self.device_discovery.discover(
-                subnet=subnet,
-                interface=interface,
-                timeout=args.timeout,
-                ports=ports,
-                classify=args.classify,
-                progress_callback=self._scan_progress_callback
-            )
+            if not args.subnet:
+                print(f"{Fore.RED}Error: Subnet is required for scanning{Style.RESET_ALL}")
+                print("Example: --subnet 192.168.1.0/24")
+                return 1
             
-            if not devices:
-                print(formatter.warning("No devices found."))
+            scan_options = {
+                'timeout': args.timeout,
+                'classify': args.classify
+            }
+            
+            # Add interface if present
+            if hasattr(args, 'interface') and args.interface:
+                scan_options['interface'] = args.interface
+            
+            if args.ports:
+                try:
+                    ports = [int(p.strip()) for p in args.ports.split(',')]
+                    scan_options['ports'] = ports
+                except ValueError:
+                    print(f"{Fore.RED}Error: Invalid port specification{Style.RESET_ALL}")
+                    print("Example: --ports 22,80,443")
+                    return 1
+            
+            results = self.device_discovery.discover(args.subnet, **scan_options)
+            
+            if not results:
+                print(f"{Fore.YELLOW}No devices found in the specified subnet.{Style.RESET_ALL}")
                 return 0
             
-            print(formatter.success(f"Found {len(devices)} devices in {(datetime.now() - start_time).total_seconds():.2f} seconds."))
-            
-            # Output based on format
             if args.output_format == 'json':
-                print(json.dumps(devices, indent=2))
+                print(json.dumps(results, indent=2))
             elif args.output_format == 'csv':
-                self._export_devices_csv(devices)
+                # Convert results to CSV format
+                headers = ['IP', 'MAC', 'Hostname', 'Type']
+                rows = [[d['ip'], d['mac'], d.get('hostname', 'N/A'), d.get('type', 'Unknown')] 
+                       for d in results]
+                print('\n'.join([','.join(headers)] + [','.join(row) for row in rows]))
             else:  # table format
-                self._display_devices_table(devices, classify=args.classify)
+                headers = ['IP Address', 'MAC Address', 'Hostname', 'Device Type']
+                rows = [[d['ip'], d['mac'], d.get('hostname', 'N/A'), d.get('type', 'Unknown')] 
+                       for d in results]
+                print(tabulate(rows, headers=headers, tablefmt='grid'))
             
             return 0
             
+        except PermissionError:
+            print(f"{Fore.RED}Error: Insufficient permissions to perform network scan{Style.RESET_ALL}")
+            print("Please run the program with appropriate privileges")
+            return 1
         except Exception as e:
-            print(formatter.error(f"Error during scan: {str(e)}"))
+            print(f"{Fore.RED}Error during network scan: {str(e)}{Style.RESET_ALL}")
             return 1
     
     def _handle_monitor(self, args):

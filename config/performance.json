@@ -3,8 +3,8 @@
     "sampling_ratio": 0.5,
     "high_traffic_threshold": 1000,
     "enable_batch_processing": true,
-    "batch_size": 100,
+    "batch_size": 200,
     "enable_parallel_processing": true,
-    "max_worker_threads": 4,
-    "memory_limit_mb": 512
-} 
+    "max_worker_threads": 3,
+    "memory_limit_mb": 1024
+}
