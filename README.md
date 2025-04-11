@@ -3,7 +3,7 @@
 [![License](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
 [![Build Status](https://img.shields.io/github/actions/workflow/status/guardsandrobbers/arpguard/ci.yml)](https://github.com/guardsandrobbers/arpguard/actions)
 [![Coverage](https://img.shields.io/codecov/c/github/guardsandrobbers/arpguard)](https://codecov.io/gh/guardsandrobbers/arpguard)
-[![Version](https://img.shields.io/badge/version-1.0.0-blue.svg)](https://github.com/guardsandrobbers/arpguard/releases)
+[![Version](https://img.shields.io/badge/version-1.0.0-blue.svg)](https://github.com/DITreneris/ARPGuard/releases)
 [![Python Version](https://img.shields.io/badge/python-3.9%2B-blue.svg)](https://www.python.org/downloads/)
 [![Node Version](https://img.shields.io/badge/node-18.x%2B-green.svg)](https://nodejs.org/)
 
