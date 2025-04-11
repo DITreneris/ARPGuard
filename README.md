@@ -95,22 +95,153 @@ security:
 
 ## Usage
 
-### Basic Monitoring
+ARP Guard provides a comprehensive command-line interface (CLI) for monitoring, configuring, and managing network security.
+
+### CLI Commands Overview
+
 ```bash
-# Start ARP Guard in monitoring mode
-arpguard monitor --interface eth0
+# Show help and available commands
+cmd /c run_arpguard.bat --help
+
+# Show help for specific command
+cmd /c run_arpguard.bat <command> --help
 ```
 
-### Attack Prevention
+### Core Commands
+
+#### Monitoring Commands
+
 ```bash
-# Enable prevention mode
-arpguard prevent --interface eth0
+# Start ARP Guard monitoring
+cmd /c run_arpguard.bat start [--interface INTERFACE] [--duration SECONDS] [--filter EXPRESSION]
+
+# Start monitoring on specific interface for 5 minutes
+cmd /c run_arpguard.bat start --interface eth0 --duration 300
+
+# Stop ARP Guard monitoring
+cmd /c run_arpguard.bat stop
+
+# Show current ARP Guard status
+cmd /c run_arpguard.bat status
 ```
 
-### View Statistics
+#### Statistics and Analysis
+
 ```bash
-# Display network statistics
-arpguard stats
+# Show basic statistics
+cmd /c run_arpguard.bat stats
+
+# Show detailed statistics 
+cmd /c run_arpguard.bat stats --detailed
+
+# Export detection results
+cmd /c run_arpguard.bat export --format csv --output results.csv
+# Supported formats: csv, json, xml
+```
+
+#### Configuration Management
+
+```bash
+# Show current configuration
+cmd /c run_arpguard.bat config show
+
+# Update configuration setting
+cmd /c run_arpguard.bat config set <key> <value>
+
+# Example: Set detection sensitivity
+cmd /c run_arpguard.bat config set detection.sensitivity high
+```
+
+#### Remediation Management
+
+```bash
+# Show remediation settings
+cmd /c run_arpguard.bat remediation show
+
+# Configure remediation settings
+cmd /c run_arpguard.bat remediation set auto_block true
+cmd /c run_arpguard.bat remediation set block_duration 3600
+
+# Manage whitelist entries
+cmd /c run_arpguard.bat remediation whitelist add 00:11:22:33:44:55 192.168.1.100
+cmd /c run_arpguard.bat remediation whitelist list
+cmd /c run_arpguard.bat remediation whitelist remove 00:11:22:33:44:55
+```
+
+#### Telemetry Management
+
+```bash
+# Show telemetry status
+cmd /c run_arpguard.bat telemetry show
+
+# Enable telemetry collection
+cmd /c run_arpguard.bat telemetry enable
+
+# Disable telemetry collection
+cmd /c run_arpguard.bat telemetry disable
+```
+
+### CLI Options
+
+ARP Guard supports several global options that can be used with any command:
+
+```bash
+# Show version information
+cmd /c run_arpguard.bat --version
+
+# Change output format
+cmd /c run_arpguard.bat --output-format json status
+# Supported formats: json, csv, table, pretty, text
+
+# Run in interactive mode
+cmd /c run_arpguard.bat --interactive
+```
+
+### Performance Options
+
+These options help optimize the application for your environment:
+
+```bash
+# Run with performance optimization
+cmd /c run_arpguard.bat --optimize-perf
+
+# Disable packet sampling to analyze all packets
+cmd /c run_arpguard.bat --disable-sampling
+
+# Set custom sampling ratio (0.1 to 1.0)
+cmd /c run_arpguard.bat --sampling-ratio 0.25
+
+# Specify number of worker threads
+cmd /c run_arpguard.bat --threads 2
+```
+
+You can combine performance options with CLI commands:
+
+```bash
+# Run with performance optimization and start monitoring
+cmd /c run_arpguard.bat --optimize-perf start --interface eth0
+```
+
+### Examples
+
+Here are some common usage scenarios:
+
+```bash
+# Start monitoring on default interface with optimized performance
+cmd /c run_arpguard.bat --optimize-perf start
+
+# Show current status in JSON format
+cmd /c run_arpguard.bat --output-format json status
+
+# Export detection results to CSV file
+cmd /c run_arpguard.bat export --format csv --output arp_threats.csv
+
+# Configure auto-blocking and check remediation settings
+cmd /c run_arpguard.bat remediation set auto_block true
+cmd /c run_arpguard.bat remediation show
+
+# Run monitoring for 10 minutes then automatically stop
+cmd /c run_arpguard.bat start --duration 600
 ```
 
 ## API Integration
