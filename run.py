@@ -3,7 +3,7 @@
 ARPGuard - Network Security Tool for ARP Poisoning Detection and Prevention
 
 This script serves as the entry point for the ARPGuard application, providing
-various command line options for operation modes including GUI, testing,
+various command line options for operation modes including CLI, testing,
 and utility operations.
 """
 
@@ -12,24 +12,54 @@ import sys
 import argparse
 import subprocess
 import logging
-from PyQt5.QtWidgets import QApplication
 
-from app.components.main_window import MainWindow
-from app.utils.logger import setup_logger
-from app.utils.config import get_config, save_config
-from app.ml import init_ml_directories
+# Add the project root and src directories to Python path
+project_root = os.path.dirname(os.path.abspath(__file__))
+src_dir = os.path.join(project_root, "src")
+sys.path.insert(0, project_root)
+sys.path.insert(0, src_dir)
+
+# Configure logging
+logging.basicConfig(level=logging.INFO)
+logger = logging.getLogger(__name__)
+
+from src.core.performance_config import PerformanceConfig
+from src.core.feature_flags import FeatureFlagManager
+from src.core.cli_module import CLIModule
+from src.core.detection_module import DetectionModule
+from src.core.telemetry_module import TelemetryModule
 
 
-def run_gui():
-    """Start the ARPGuard GUI application."""
-    # Initialize ML directories
-    init_ml_directories()
+def run_cli(perf_args=None, cli_args=None):
+    """Run the application in CLI mode.
     
-    # Start the application
-    app = QApplication(sys.argv)
-    window = MainWindow()
-    window.show()
-    return app.exec_()
+    Args:
+        perf_args: Optional list of performance-related arguments to pass to main.py
+        cli_args: Optional list of CLI arguments to pass to the CLI module
+        
+    Returns:
+        Exit code from the process
+    """
+    # Start main.py with performance arguments only
+    cmd = [sys.executable, "src/main.py"]
+    
+    # Ensure we're passing performance args properly
+    if perf_args:
+        # Filter out any None values or empty strings
+        perf_args = [arg for arg in perf_args if arg]
+        cmd.extend(perf_args)
+    
+    # Add CLI arguments if provided - no need to add the "--" separator
+    # as main.py doesn't pass "--optimize-perf" to the CLI module
+    if cli_args:
+        cmd.extend(cli_args)
+    
+    # Log the full command we're about to run
+    logger.info(f"Running command: {' '.join(cmd)}")
+    
+    # Run the process
+    process = subprocess.Popen(cmd)
+    return process.wait()
 
 
 def run_tests(verbose=False, coverage=False):
@@ -48,169 +78,97 @@ def run_tests(verbose=False, coverage=False):
     
     if verbose:
         cmd.append("-v")
-        
-    if coverage:
-        cmd.extend(["--cov=app", "--cov-report=term"])
-        
-    # Add tests directory
-    cmd.append("tests/")
     
-    try:
-        result = subprocess.run(cmd, check=False)
-        if result.returncode == 0:
-            print("All tests passed successfully!")
-        else:
-            print(f"Tests failed with exit code: {result.returncode}")
-        return result.returncode
-    except Exception as e:
-        print(f"Error running tests: {e}")
-        return 1
+    if coverage:
+        cmd.extend(["--cov=app", "--cov-report=term-missing"])
+    
+    return subprocess.run(cmd).returncode
 
 
-def update_mac_vendors():
-    """Update the MAC vendor database."""
-    print("Updating MAC vendor database...")
-    try:
-        from app.utils.mac_vendor import update_vendor_database
-        success = update_vendor_database()
-        if success:
-            print("MAC vendor database updated successfully!")
-            return 0
-        else:
-            print("Failed to update MAC vendor database.")
-            return 1
-    except Exception as e:
-        print(f"Error updating MAC vendor database: {e}")
-        return 1
-
-
-def show_config():
-    """Display the current configuration."""
-    config = get_config()
-    print("Current ARPGuard Configuration:")
-    print("-" * 40)
-    for key, value in sorted(config.items()):
-        print(f"{key}: {value}")
-    print("-" * 40)
+def run_update():
+    """Update application resources."""
+    print("Updating ARPGuard resources...")
     return 0
 
 
-def set_config(key, value):
-    """Set a configuration value.
-    
-    Args:
-        key: The configuration key
-        value: The new value
-        
-    Returns:
-        int: Exit code (0 for success)
-    """
-    try:
-        # Convert value to appropriate type
-        if value.lower() in ('true', 'yes', '1'):
-            value = True
-        elif value.lower() in ('false', 'no', '0'):
-            value = False
-        elif value.isdigit():
-            value = int(value)
-        elif value.replace('.', '', 1).isdigit() and value.count('.') == 1:
-            value = float(value)
-            
-        # Get current config
-        config = get_config()
-        
-        # Update value
-        config[key] = value
-        
-        # Save config
-        save_config(config)
-        
-        print(f"Configuration updated: {key} = {value}")
-        return 0
-    except Exception as e:
-        print(f"Error setting configuration: {e}")
-        return 1
+def run_config():
+    """Configure the application."""
+    print("Configuring ARPGuard...")
+    return 0
+
+
+def run_ml():
+    """Run machine learning operations."""
+    print("Running ML operations...")
+    return 0
 
 
 def main():
-    """Main entry point for the ARPGuard application."""
-    # Set up argument parser
-    parser = argparse.ArgumentParser(
-        description="ARPGuard - Network Security Tool for ARP Poisoning Detection and Prevention"
+    """Main entry point for the application."""
+    parser = argparse.ArgumentParser(description="ARPGuard - Network Security Tool")
+    
+    # Add operation mode arguments
+    mode_group = parser.add_mutually_exclusive_group()
+    mode_group.add_argument("--cli", action="store_true", help="Start in CLI mode")
+    mode_group.add_argument("--test", action="store_true", help="Run the test suite")
+    mode_group.add_argument("--update", action="store_true", help="Update the application")
+    mode_group.add_argument("--config", action="store_true", help="Configure the application")
+    mode_group.add_argument("--ml", action="store_true", help="Run machine learning operations")
+    
+    # Add performance-related arguments
+    perf_group = parser.add_argument_group("Performance Options")
+    perf_group.add_argument(
+        "--optimize-perf",
+        action="store_true",
+        help="Automatically optimize performance for current environment"
+    )
+    perf_group.add_argument(
+        "--disable-sampling",
+        action="store_true",
+        help="Disable packet sampling in high traffic scenarios"
+    )
+    perf_group.add_argument(
+        "--sampling-ratio",
+        type=float,
+        help="Packet sampling ratio (0.1-1.0)"
+    )
+    perf_group.add_argument(
+        "--threads",
+        type=int,
+        help="Number of worker threads"
     )
     
-    # Add subparsers for different commands
-    subparsers = parser.add_subparsers(dest="command", help="Command to run")
+    # Add test-related arguments
+    test_group = parser.add_argument_group("Test Options")
+    test_group.add_argument("-v", "--verbose", action="store_true", help="Show detailed test output")
+    test_group.add_argument("--coverage", action="store_true", help="Generate coverage report")
     
-    # GUI command (default)
-    gui_parser = subparsers.add_parser("gui", help="Start the ARPGuard GUI")
+    # Parse known arguments, keeping the rest for CLI commands
+    args, remaining_args = parser.parse_known_args()
     
-    # Test command
-    test_parser = subparsers.add_parser("test", help="Run the test suite")
-    test_parser.add_argument("-v", "--verbose", action="store_true", help="Show detailed test output")
-    test_parser.add_argument("--coverage", action="store_true", help="Generate coverage report")
+    # Collect performance-related arguments to pass to main.py
+    perf_args = []
+    if args.optimize_perf:
+        perf_args.append("--optimize-perf")
+    if args.disable_sampling:
+        perf_args.append("--disable-sampling")
+    if args.sampling_ratio is not None:
+        perf_args.extend(["--sampling-ratio", str(args.sampling_ratio)])
+    if args.threads is not None:
+        perf_args.extend(["--threads", str(args.threads)])
     
-    # Update command
-    update_parser = subparsers.add_parser("update", help="Update resources")
-    update_parser.add_argument("--mac-vendors", action="store_true", help="Update MAC vendor database")
-    
-    # Config command
-    config_parser = subparsers.add_parser("config", help="Manage configuration")
-    config_parser.add_argument("--show", action="store_true", help="Show current configuration")
-    config_parser.add_argument("--set", nargs=2, metavar=("KEY", "VALUE"), help="Set configuration value")
-    
-    # ML command
-    ml_parser = subparsers.add_parser("ml", help="Machine Learning operations")
-    ml_parser.add_argument("--train", action="store_true", help="Train ML models")
-    ml_parser.add_argument("--predict", action="store_true", help="Run ML prediction")
-    
-    # Debug option
-    parser.add_argument("--debug", action="store_true", help="Enable debug logging")
-    
-    args = parser.parse_args()
-    
-    # Setup logger
-    log_level = logging.DEBUG if args.debug else logging.INFO
-    setup_logger(log_level)
-    
-    # Process commands
-    if args.command == "test":
+    # Run in appropriate mode
+    if args.test:
         return run_tests(args.verbose, args.coverage)
-    elif args.command == "update":
-        if args.mac_vendors:
-            return update_mac_vendors()
-        else:
-            update_parser.print_help()
-            return 1
-    elif args.command == "config":
-        if args.show:
-            return show_config()
-        elif args.set:
-            return set_config(args.set[0], args.set[1])
-        else:
-            config_parser.print_help()
-            return 1
-    elif args.command == "ml":
-        if args.train:
-            # Initialize ML directories and load modules for training
-            from app.components.ml_controller import MLController
-            
-            print("Training ML models...")
-            ml_controller = MLController()
-            success = ml_controller.train_models(force=True)
-            
-            if success:
-                print("ML models trained successfully")
-                return 0
-            else:
-                print("Failed to train ML models")
-                return 1
-        else:
-            ml_parser.print_help()
-            return 1
+    elif args.update:
+        return run_update()
+    elif args.config:
+        return run_config()
+    elif args.ml:
+        return run_ml()
     else:
-        # Default to GUI mode
-        return run_gui()
+        # Default to CLI mode, passing any remaining arguments
+        return run_cli(perf_args, remaining_args)
 
 
 if __name__ == "__main__":

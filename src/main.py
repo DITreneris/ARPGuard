@@ -8,13 +8,14 @@ import sys
 import logging
 import argparse
 import os
-from typing import List, Optional, Dict, Any
+from typing import List, Optional, Dict, Any, Tuple
 
-from core.cli_module import CLIModule, CLIModuleConfig, create_standard_commands
-from core.detection_module import DetectionModule, DetectionModuleConfig
-from core.telemetry_module import TelemetryModule, TelemetryModuleConfig
-from core.cli_utils import OutputFormat, OutputFormatter, ProgressBar, Spinner
-from core.performance_config import PerformanceConfig
+from src.core.cli_module import CLIModule, CLIModuleConfig, create_standard_commands
+from src.core.detection_module import DetectionModule, DetectionModuleConfig
+from src.core.telemetry_module import TelemetryModule, TelemetryModuleConfig
+from src.core.cli_utils import OutputFormat, OutputFormatter, ProgressBar, Spinner
+from src.core.performance_config import PerformanceConfig
+from src.core.feature_flags import FeatureFlagManager, register_standard_features
 
 # Configure logging
 logging.basicConfig(
@@ -190,7 +191,7 @@ def shutdown_modules(modules: Dict[str, Any]) -> bool:
     return success
 
 
-def parse_arguments(args: List[str]) -> argparse.Namespace:
+def parse_arguments(args: List[str]) -> Tuple[argparse.Namespace, List[str]]:
     """
     Parse command line arguments
     
@@ -198,9 +199,9 @@ def parse_arguments(args: List[str]) -> argparse.Namespace:
         args: Command line arguments
         
     Returns:
-        Parsed arguments
+        Tuple of (parsed arguments, remaining CLI arguments)
     """
-    parser = argparse.ArgumentParser(description="ARP Guard - Network Security Tool")
+    parser = argparse.ArgumentParser(description="ARP Guard - Network Security Tool", add_help=True)
     
     # Add performance-related arguments
     perf_group = parser.add_argument_group("Performance Options")
@@ -225,7 +226,12 @@ def parse_arguments(args: List[str]) -> argparse.Namespace:
         help="Number of worker threads"
     )
     
-    return parser.parse_args(args)
+    # Split the args into the ones we recognize and the ones we don't
+    # First, parse known args only to avoid errors on unknown CLI commands
+    parsed_args, remaining_args = parser.parse_known_args(args)
+    
+    # Return parsed arguments and the remaining CLI command arguments
+    return parsed_args, remaining_args
 
 
 def main(args: Optional[List[str]] = None) -> int:
@@ -241,53 +247,51 @@ def main(args: Optional[List[str]] = None) -> int:
     if args is None:
         args = sys.argv[1:]
     
-    # Parse command line arguments
-    parsed_args = parse_arguments(args)
-        
-    try:
-        # Initialize modules
-        modules = initialize_modules()
-        if not modules:
-            logger.error("Failed to initialize modules")
-            return 1
-        
-        # Apply command line performance options if specified
-        if "performance" in modules:
-            perf_config = modules["performance"]
-            
-            if parsed_args.optimize_perf:
-                perf_config.optimize_for_environment()
-                logger.info("Re-optimized performance settings for current environment")
-            
-            if parsed_args.disable_sampling:
-                perf_config.enable_packet_sampling = False
-                logger.info("Packet sampling disabled")
-            
-            if parsed_args.sampling_ratio is not None:
-                perf_config.sampling_ratio = max(0.1, min(1.0, parsed_args.sampling_ratio))
-                logger.info(f"Packet sampling ratio set to {perf_config.sampling_ratio}")
-            
-            if parsed_args.threads is not None:
-                perf_config.max_worker_threads = max(1, min(parsed_args.threads, os.cpu_count()))
-                logger.info(f"Worker threads set to {perf_config.max_worker_threads}")
-        
-        # Run CLI
-        if "cli" in modules:
-            success = modules["cli"].run()
-        else:
-            logger.error("CLI module not available")
-            success = False
-        
-        # Shutdown modules
-        shutdown_modules(modules)
-        
-        return 0 if success else 1
+    # Parse command line arguments first
+    parsed_args, cli_args = parse_arguments(args)
     
-    except KeyboardInterrupt:
-        print("\nInterrupted by user. Shutting down...")
-        if 'modules' in locals():
-            shutdown_modules(modules)
-        return 0
+    # Initialize feature flags first
+    feature_manager = FeatureFlagManager()
+    register_standard_features()  # Call the standalone function
+    
+    # Initialize modules
+    modules = initialize_modules()
+    if not modules:
+        logger.error("Failed to initialize modules")
+        return 1
+    
+    # Apply command line performance options if specified
+    if "performance" in modules:
+        perf_config = modules["performance"]
+        
+        if parsed_args.optimize_perf:
+            perf_config.optimize_for_environment()
+            logger.info("Re-optimized performance settings for current environment")
+        
+        if parsed_args.disable_sampling:
+            perf_config.enable_packet_sampling = False
+            logger.info("Packet sampling disabled")
+        
+        if parsed_args.sampling_ratio is not None:
+            perf_config.sampling_ratio = max(0.1, min(1.0, parsed_args.sampling_ratio))
+            logger.info(f"Packet sampling ratio set to {perf_config.sampling_ratio}")
+        
+        if parsed_args.threads is not None:
+            perf_config.max_worker_threads = max(1, min(parsed_args.threads, os.cpu_count()))
+            logger.info(f"Worker threads set to {perf_config.max_worker_threads}")
+    
+    # Run CLI
+    if "cli" in modules:
+        # Pass the remaining CLI arguments to the CLI module
+        success = modules["cli"].run(cli_args)
+    else:
+        logger.error("CLI module not available")
+        success = False
+    
+    # Shutdown modules
+    shutdown_modules(modules)
+    
+    return 0 if success else 1
 
 
 if __name__ == "__main__":
